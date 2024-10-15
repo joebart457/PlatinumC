@@ -8,13 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CliLogger" Version="2.0.1" />
     <PackageReference Include="CliParser" Version="2.1.0" />
     <PackageReference Include="ParserLite" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Assemblers\Fasm\" />
-    <Folder Include="Assets\" />
   </ItemGroup>
 
   <ItemGroup>

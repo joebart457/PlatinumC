@@ -1,8 +1,12 @@
-library kernel32 'kernel32'
+library kernel32 'kernel32.dll'
 
 import kernel32 stdcall ptr GetStdHandle(int identifier);
 import kernel32 stdcall void WriteFile(ptr hConsole, string msg, int sizeOfMessage, int bytesWritten, int reserved);
 import kernel32 stdcall void ExitProcess(int exitCode);
+
+library msvcrt 'msvcrt.dll'
+import msvcrt cdecl void printf(string msg);
+import msvcrt cdecl void printf_num(string msg, int num) from 'printf';
 
 void Main(){
 	ptr hConsole = GetStdHandle(-11);
@@ -14,8 +18,24 @@ void Main(){
 	}else {
 		WriteFile(hConsole, "This should not print", 23, 0, 0);
 	}
+	int* y = &x;
+	*y = 98;
+	printf_num("x is %d (should be 98)", *y);
 	
+	int counter = 0;
+	while(counter < 5){
+		SayHi();
+		counter = AddOne(counter);
+	}
+
 	ExitProcess(0);
 }
 
+void SayHi(){
+	printf("Hi");
+	return;
+}
 
+int AddOne(int number){
+	return number + 1;
+}

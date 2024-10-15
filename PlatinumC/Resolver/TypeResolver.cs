@@ -24,13 +24,59 @@ namespace PlatinumC.Resolver
             _currentFunction = null;
             _importedLibraries = new();
             _loops = new();
+            _currentFunction = null;
             var resolvedDeclarations = new List<TypedDeclaration>();
             foreach(var declaration in parsingResult.Declarations)
             {
-                resolvedDeclarations.Add(declaration.Visit(this));
+                if (declaration is ImportLibraryDeclaration importLibraryDeclaration)
+                    resolvedDeclarations.Add(Accept(importLibraryDeclaration));
+            }
+
+            foreach (var declaration in parsingResult.Declarations)
+            {
+                if (declaration is ImportedFunctionDeclaration importedFunctionDeclaration)
+                    GatherDefintion(importedFunctionDeclaration);
+                if (declaration is FunctionDeclaration functionDeclaration)
+                    GatherDefintion(functionDeclaration);
+            }
+
+
+            foreach (var declaration in parsingResult.Declarations)
+            {
+                if (!(declaration is ImportLibraryDeclaration))
+                    resolvedDeclarations.Add(declaration.Visit(this));
             }
             return new ResolverResult(resolvedDeclarations);
         }
+
+        internal void GatherDefintion(FunctionDeclaration functionDeclaration)
+        {
+            var returnType = Resolve(functionDeclaration.ReturnType);
+            var parameters = functionDeclaration.Parameters.Select(x => new TypedParameterDeclaration(x.ParameterName, Resolve(x.ParameterType))).ToList();
+            if (parameters.GroupBy(x => x.ParameterName.Lexeme).Any(x => x.Count() > 1)) throw new ParsingException(functionDeclaration.Token, $"parameter names must not repeat");
+
+            var function = new TypedFunctionDeclaration(functionDeclaration, returnType, functionDeclaration.FunctionIdentifier, parameters, new(), false, functionDeclaration.CallingConvention, functionDeclaration.IsExport, functionDeclaration.ExportedAlias);
+            if (_functions.ContainsKey(functionDeclaration.FunctionIdentifier.Lexeme) || _importedFunctions.ContainsKey(functionDeclaration.FunctionIdentifier.Lexeme))
+                throw new ParsingException(functionDeclaration.FunctionIdentifier, $"function {functionDeclaration.FunctionIdentifier.Lexeme} is already defined");
+            
+            _functions[functionDeclaration.FunctionIdentifier.Lexeme] = function;
+        }
+
+        internal void GatherDefintion(ImportedFunctionDeclaration importedFunctionDeclaration)
+        {
+            var returnType = Resolve(importedFunctionDeclaration.ReturnType);
+            var parameters = importedFunctionDeclaration.Parameters.Select(x => new TypedParameterDeclaration(x.ParameterName, Resolve(x.ParameterType))).ToList();
+            if (parameters.GroupBy(x => x.ParameterName.Lexeme).Any(x => x.Count() > 1)) throw new ParsingException(importedFunctionDeclaration.Token, $"parameter names must not repeat");
+
+            if (!_importedLibraries.ContainsKey(importedFunctionDeclaration.LibraryAlias.Lexeme))
+                throw new ParsingException(importedFunctionDeclaration.LibraryAlias, $"library with alias {importedFunctionDeclaration.LibraryAlias} is not defined");
+
+            var importedFunction = new TypedImportedFunctionDeclaration(importedFunctionDeclaration, returnType, importedFunctionDeclaration.FunctionIdentifier, parameters, importedFunctionDeclaration.CallingConvention, importedFunctionDeclaration.LibraryAlias, importedFunctionDeclaration.FunctionSymbol);
+            if (_importedFunctions.ContainsKey(importedFunction.FunctionIdentifier.Lexeme) || _functions.ContainsKey(importedFunction.FunctionIdentifier.Lexeme))
+                throw new ParsingException(importedFunction.FunctionIdentifier, $"function {importedFunction.FunctionIdentifier} is already defined");
+            _importedFunctions[importedFunction.FunctionIdentifier.Lexeme] = importedFunction;
+        }
+
 
         private ResolvedType Resolve(TypeSymbol typeSymbol)
         {
@@ -281,6 +327,14 @@ namespace PlatinumC.Resolver
 
         internal TypedStatement Accept(ReturnStatement returnStatement)
         {
+            if (returnStatement.ValueToReturn == null)
+            {
+                if (CurrentFunction.ReturnType.Is(SupportedType.Void) && CurrentFunction.ReturnType.UnderlyingType == null) // TODO
+                {
+                    return new TypedReturnStatement(returnStatement, null);
+                }
+                throw new ParsingException(returnStatement.Token, $"expected return value to be of type {CurrentFunction.ReturnType} but got void");
+            }
             var valueToReturn = returnStatement.ValueToReturn.Visit(this);
             if (!CurrentFunction.ReturnType.Is(valueToReturn.ResolvedType))
                 throw new ParsingException(returnStatement.Token, $"expected return value of type {CurrentFunction.ReturnType} but got {valueToReturn.ResolvedType}");
@@ -294,8 +348,7 @@ namespace PlatinumC.Resolver
             if (parameters.GroupBy(x => x.ParameterName.Lexeme).Any(x => x.Count() > 1)) throw new ParsingException(functionDeclaration.Token, $"parameter names must not repeat");
 
             var function = new TypedFunctionDeclaration(functionDeclaration, returnType, functionDeclaration.FunctionIdentifier, parameters, new(), false, functionDeclaration.CallingConvention, functionDeclaration.IsExport, functionDeclaration.ExportedAlias);
-            if (_functions.ContainsKey(functionDeclaration.FunctionIdentifier.Lexeme) || _importedFunctions.ContainsKey(functionDeclaration.FunctionIdentifier.Lexeme))
-                throw new ParsingException(functionDeclaration.FunctionIdentifier, $"function {functionDeclaration.FunctionIdentifier.Lexeme} is already defined");
+            
             if (_currentFunction != null) throw new InvalidOperationException();
             _currentFunction = function;
             foreach(var statement in functionDeclaration.Body)
@@ -327,8 +380,7 @@ namespace PlatinumC.Resolver
                 throw new ParsingException(importedFunctionDeclaration.LibraryAlias, $"library with alias {importedFunctionDeclaration.LibraryAlias} is not defined");
 
             var importedFunction = new TypedImportedFunctionDeclaration(importedFunctionDeclaration, returnType, importedFunctionDeclaration.FunctionIdentifier, parameters, importedFunctionDeclaration.CallingConvention, importedFunctionDeclaration.LibraryAlias, importedFunctionDeclaration.FunctionSymbol);
-            if (_importedFunctions.ContainsKey(importedFunction.FunctionIdentifier.Lexeme) || _functions.ContainsKey(importedFunction.FunctionIdentifier.Lexeme))
-                throw new ParsingException(importedFunction.FunctionIdentifier, $"function {importedFunction.FunctionIdentifier} is already defined");
+
             _importedFunctions[importedFunction.FunctionIdentifier.Lexeme] = importedFunction;
             return importedFunction;
         }
@@ -336,7 +388,7 @@ namespace PlatinumC.Resolver
         internal TypedExpression Accept(Assignment assignment)
         {
             if (assignment.Instance != null) throw new NotImplementedException();
-            var valueToAssign = assignment.Visit(this);
+            var valueToAssign = assignment.ValueToAssign.Visit(this);
             var foundParameter = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == assignment.AssignmentTarget.Lexeme);
             if (foundParameter != null)
             {

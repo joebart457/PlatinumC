@@ -166,6 +166,8 @@ namespace PlatinumC.Shared
             if (Condition is TypedBinaryComparison_Integer_Integer comparison_Integer_Integer)
             {
                 context.AddInstruction(X86Instructions.Label(startLabel));
+                comparison_Integer_Integer.Lhs.Visit(context);
+                comparison_Integer_Integer.Rhs.Visit(context);
                 context.AddInstruction(X86Instructions.Pop(X86Register.eax));
                 context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
                 context.AddInstruction(X86Instructions.Cmp(X86Register.ebx, X86Register.eax));
@@ -179,11 +181,14 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Jmp(endLabel));
                 context.AddInstruction(X86Instructions.Label(bodyLabel));
                 ThenDo.Visit(context);
+                context.AddInstruction(X86Instructions.Jmp(startLabel));
                 context.AddInstruction(X86Instructions.Label(endLabel));
             }
             else if (Condition is TypedBinaryComparison_Float_Float comparison_Float_Float)
             {
                 context.AddInstruction(X86Instructions.Label(startLabel));
+                comparison_Float_Float.Lhs.Visit(context);
+                comparison_Float_Float.Rhs.Visit(context);
                 context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
                 context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0, true)));
                 context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
@@ -213,6 +218,7 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Jmp(endLabel));
                 context.AddInstruction(X86Instructions.Label(bodyLabel));
                 ThenDo.Visit(context);
+                context.AddInstruction(X86Instructions.Jmp(startLabel));
                 context.AddInstruction(X86Instructions.Label(endLabel));
             }
             else throw new NotImplementedException();
@@ -283,8 +289,8 @@ namespace PlatinumC.Shared
 
     public class TypedReturnStatement : TypedStatement
     {
-        public TypedExpression ValueToReturn { get; set; }
-        public TypedReturnStatement(Statement originalStatement, TypedExpression valueToReturn) : base(originalStatement)
+        public TypedExpression? ValueToReturn { get; set; }
+        public TypedReturnStatement(Statement originalStatement, TypedExpression? valueToReturn) : base(originalStatement)
         {
             ValueToReturn = valueToReturn;
         }
@@ -292,6 +298,21 @@ namespace PlatinumC.Shared
         public override void Visit(X86CompilationContext context)
         {
             base.Visit(context);
+            if (ValueToReturn == null)
+            {
+                context.AddInstruction(X86Instructions.Mov(X86Register.esp, X86Register.ebp));
+                context.AddInstruction(X86Instructions.Pop(X86Register.ebp));
+                if (context.CurrentFunction.CallingConvention == CallingConvention.Cdecl) context.AddInstruction(X86Instructions.Ret());
+                else if (context.CurrentFunction.CallingConvention == CallingConvention.StdCall)
+                {
+                    var parameterCount = context.CurrentFunction.Parameters.Count;
+                    if (parameterCount == 0) context.AddInstruction(X86Instructions.Ret());
+                    else context.AddInstruction(X86Instructions.Ret(parameterCount * 4));
+                }
+                else throw new NotImplementedException();
+                return;
+
+            }
             ValueToReturn.Visit(context);
 
             if (ValueToReturn.ResolvedType.Is(SupportedType.Int))

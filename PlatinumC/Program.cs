@@ -1,9 +1,11 @@
 ﻿
 
 using CliParser;
+using Logger;
 using PlatinumC.Services;
 
-args = ["C:\\Users\\Jimmy\\Desktop\\Repositories\\PlatinumC\\PlatinumC\\Assets\\dtest.txt", "test.exe", "optimized_test.asm"];
-
 var startupService = new StartupService();
-args.ResolveWithTryCatch(startupService, ex => Console.WriteLine(ex.InnerException?.StackTrace));
+args.ResolveWithTryCatch(startupService, ex =>
+{
+    CliLogger.LogError(ex.InnerException?.Message ?? $"fatal error: {ex.Message}");
+});

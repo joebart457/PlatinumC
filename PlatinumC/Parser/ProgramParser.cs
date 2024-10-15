@@ -187,7 +187,8 @@ namespace PlatinumC.Parser
 
         public ReturnStatement ParseReturnStatement()
         {
-            var token = Previous();         
+            var token = Previous();
+            if (AdvanceIfMatch(TokenTypes.SemiColon)) return new ReturnStatement(token, null);
             var valueToReturn = ParseExpression();
             Consume(TokenTypes.SemiColon, "expect ; after statement");
             return new ReturnStatement(token, valueToReturn);

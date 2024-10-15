@@ -108,8 +108,8 @@ namespace PlatinumC.Shared
 
     public class ReturnStatement : Statement
     {
-        public Expression ValueToReturn { get; set; }
-        public ReturnStatement(IToken token, Expression valueToReturn) : base(token)
+        public Expression? ValueToReturn { get; set; }
+        public ReturnStatement(IToken token, Expression? valueToReturn) : base(token)
         {
             ValueToReturn = valueToReturn;
         }

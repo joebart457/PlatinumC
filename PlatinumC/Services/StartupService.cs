@@ -1,21 +1,34 @@
 ﻿using CliParser;
+using Logger;
 using PlatinumC.Compiler;
-using System.Net.Sockets;
 
 namespace PlatinumC.Services
 {
-    [Entry("c")]
+    [Entry("PlatinumC.exe")]
     internal class StartupService
     {
         [Command]
-        public void Compile(string inputPath, string? outputPath = null, string? assemblyPath = null)
+        public void Compile(
+            [Option("inputPath", "i", "the path of the source file to be compiled")] string inputPath,
+            [Option("outputPath", "o", "the desired path of the resulting binary")] string? outputPath = null,
+            [Option("assemblyPath", "a", "the path to save the generated intermediate assembly. Option can be ignored if only final binary is desired.")] string? assemblyPath = null,
+            [Option("target", "t", "the target binary format. Valid options are exe or dll.")] string? target = null,
+            [Option("enableOptimizations", "x", "whether or not to allow the compiler to optimize the generated assembly")] bool enableOptimizations = true)
         {
+            var outputTarget = OutputTarget.Exe;
+            if (!string.IsNullOrWhiteSpace(target))
+            {
+                if (!Enum.TryParse(target, true, out outputTarget))
+                    CliLogger.LogError($"invalid value for option -t target. Value must be one of {string.Join(", ", Enum.GetNames<OutputTarget>())}");
+            }
+
             var compilationOptions = new CompilationOptions()
             {
                 InputPath = inputPath,
                 AssemblyPath = assemblyPath ?? Path.ChangeExtension(inputPath, ".asm"),
                 OutputPath = outputPath ?? Path.ChangeExtension(inputPath, ".exe"), 
-                EnableOptimizations = true
+                OutputTarget = outputTarget,
+                EnableOptimizations = enableOptimizations
             };
             var compiler = new X86ProgramCompiler();
 
