@@ -23,7 +23,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
 
         public static Mov_Register_Offset Mov(X86Register destination, RegisterOffset source) => new Mov_Register_Offset(destination, source);
         public static Mov_Offset_Register Mov(RegisterOffset destination, X86Register source) => new Mov_Offset_Register(destination, source);
+        public static Mov_Offset_Immediate Mov(RegisterOffset destination, int immediate) => new Mov_Offset_Immediate(destination, immediate);
         public static Mov_Register_Register Mov(X86Register destination, X86Register source) => new Mov_Register_Register(destination, source);
+        public static Mov_Register_Immediate Mov(X86Register destination, int immediate) => new Mov_Register_Immediate(destination, immediate);
 
         public static Sub Sub(X86Register destination, int valueToSubtract) => new Sub(destination, valueToSubtract);
         public static Sub_Register_Register Sub(X86Register destination, X86Register source) => new Sub_Register_Register(destination, source);

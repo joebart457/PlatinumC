@@ -20,6 +20,7 @@ namespace PlatinumC.Compiler
         public string OutputPath { get; set; } = "";
         public OutputTarget OutputTarget { get; set; } = OutputTarget.Exe;
         public bool EnableOptimizations { get; set; } = false;
+        public int OptimizationPasses { get; set; } = 3;
 
     }
 }

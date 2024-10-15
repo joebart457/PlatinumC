@@ -23,7 +23,7 @@ namespace PlatinumC.CodeGenerator.Fasm
             }
             else if (data.CompilationOptions.OutputTarget == OutputTarget.Dll)
             {
-                sb.AppendLine("format PE64 DLL");
+                sb.AppendLine("format PE DLL");
                 sb.AppendLine("entry DllEntryPoint");
             }
             else throw new Exception($"unable to generate code for output target {data.CompilationOptions.OutputTarget}");

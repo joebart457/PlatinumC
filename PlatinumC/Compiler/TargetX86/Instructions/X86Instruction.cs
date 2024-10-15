@@ -35,5 +35,19 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
             if (IsIndirect) return $"dword [{repr}]";
             return repr;
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is RegisterOffset offset)
+            {
+                return Offset == offset.Offset && IsIndirect == offset.IsIndirect && Register == offset.Register;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return Register.GetHashCode();
+        }
     }
 }

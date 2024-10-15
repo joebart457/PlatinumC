@@ -20,11 +20,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class JmpGt : X86Instruction
+    public class JmpGt : Jmp
     {
-        public string Label { get; set; }
-
-        public JmpGt(string label)
+        public JmpGt(string label) : base(label)
         {
             Label = label;
         }
@@ -35,11 +33,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class JmpLt : X86Instruction
+    public class JmpLt : Jmp
     {
-        public string Label { get; set; }
-
-        public JmpLt(string label)
+        public JmpLt(string label) : base(label)
         {
             Label = label;
         }
@@ -50,11 +46,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class JmpGte : X86Instruction
+    public class JmpGte : Jmp
     {
-        public string Label { get; set; }
 
-        public JmpGte(string label)
+        public JmpGte(string label) : base(label)
         {
             Label = label;
         }
@@ -65,11 +60,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class JmpLte : X86Instruction
+    public class JmpLte : Jmp
     {
-        public string Label { get; set; }
-
-        public JmpLte(string label)
+        public JmpLte(string label) : base(label)
         {
             Label = label;
         }
@@ -80,11 +73,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class JmpEq : X86Instruction
+    public class JmpEq : Jmp
     {
-        public string Label { get; set; }
-
-        public JmpEq(string label)
+        public JmpEq(string label) : base(label)
         {
             Label = label;
         }
@@ -95,11 +86,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class JmpNeq : X86Instruction
+    public class JmpNeq : Jmp
     {
-        public string Label { get; set; }
-
-        public JmpNeq(string label)
+        public JmpNeq(string label) : base(label)
         {
             Label = label;
         }
@@ -110,11 +99,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Jz : X86Instruction
+    public class Jz : Jmp
     {
-        public string Label { get; set; }
-
-        public Jz(string label)
+        public Jz(string label) : base(label)
         {
             Label = label;
         }
@@ -125,11 +112,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Jnz : X86Instruction
+    public class Jnz : Jmp
     {
-        public string Label { get; set; }
-
-        public Jnz(string label)
+        public Jnz(string label) : base(label)
         {
             Label = label;
         }
@@ -140,11 +125,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Js : X86Instruction
+    public class Js : Jmp
     {
-        public string Label { get; set; }
-
-        public Js(string label)
+        public Js(string label) : base(label)
         {
             Label = label;
         }
@@ -155,11 +138,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Jns : X86Instruction
+    public class Jns : Jmp
     {
-        public string Label { get; set; }
-
-        public Jns(string label)
+        public Jns(string label) : base(label)
         {
             Label = label;
         }
@@ -170,11 +151,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Ja : X86Instruction
+    public class Ja : Jmp
     {
-        public string Label { get; set; }
-
-        public Ja(string label)
+        public Ja(string label): base(label)
         {
             Label = label;
         }
@@ -185,11 +164,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Jae : X86Instruction
+    public class Jae : Jmp
     {
-        public string Label { get; set; }
-
-        public Jae(string label)
+        public Jae(string label) : base(label)
         {
             Label = label;
         }
@@ -200,11 +177,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Jb : X86Instruction
+    public class Jb : Jmp
     {
-        public string Label { get; set; }
-
-        public Jb(string label)
+        public Jb(string label) : base(label)
         {
             Label = label;
         }
@@ -215,11 +190,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Jbe : X86Instruction
+    public class Jbe : Jmp
     {
-        public string Label { get; set; }
 
-        public Jbe(string label)
+        public Jbe(string label): base(label)
         {
             Label = label;
         }

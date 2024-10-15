@@ -13,7 +13,8 @@ namespace PlatinumC.Services
             [Option("outputPath", "o", "the desired path of the resulting binary")] string? outputPath = null,
             [Option("assemblyPath", "a", "the path to save the generated intermediate assembly. Option can be ignored if only final binary is desired.")] string? assemblyPath = null,
             [Option("target", "t", "the target binary format. Valid options are exe or dll.")] string? target = null,
-            [Option("enableOptimizations", "x", "whether or not to allow the compiler to optimize the generated assembly")] bool enableOptimizations = true)
+            [Option("enableOptimizations", "x", "whether or not to allow the compiler to optimize the generated assembly")] bool enableOptimizations = true,
+            [Option("numberOfPasses", "n", "number of optimization passes to make. Ignored if enableOptimizations is false")] int numberOfPasses = 3)
         {
             var outputTarget = OutputTarget.Exe;
             if (!string.IsNullOrWhiteSpace(target))
@@ -25,10 +26,11 @@ namespace PlatinumC.Services
             var compilationOptions = new CompilationOptions()
             {
                 InputPath = inputPath,
-                AssemblyPath = assemblyPath ?? Path.ChangeExtension(inputPath, ".asm"),
-                OutputPath = outputPath ?? Path.ChangeExtension(inputPath, ".exe"), 
+                AssemblyPath = assemblyPath ?? "",
+                OutputPath = outputPath ?? "", 
                 OutputTarget = outputTarget,
-                EnableOptimizations = enableOptimizations
+                EnableOptimizations = enableOptimizations,
+                OptimizationPasses = numberOfPasses,
             };
             var compiler = new X86ProgramCompiler();
 

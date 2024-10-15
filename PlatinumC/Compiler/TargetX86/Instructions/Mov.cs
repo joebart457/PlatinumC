@@ -53,4 +53,36 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
             return $"mov {Destination}, {Source}";
         }
     }
+
+    public class Mov_Register_Immediate : X86Instruction
+    {
+        public X86Register Destination { get; set; }
+        public int ImmediateValue { get; set; }
+        public Mov_Register_Immediate(X86Register destination, int immediateValue)
+        {
+            Destination = destination;
+            ImmediateValue = immediateValue;
+        }
+
+        public override string Emit()
+        {
+            return $"mov {Destination}, {ImmediateValue}";
+        }
+    }
+
+    public class Mov_Offset_Immediate : X86Instruction
+    {
+        public RegisterOffset Destination { get; set; }
+        public int Immediate { get; set; }
+        public Mov_Offset_Immediate(RegisterOffset destination, int immediate)
+        {
+            Destination = destination;
+            Immediate = immediate;
+        }
+
+        public override string Emit()
+        {
+            return $"mov {Destination}, {Immediate}";
+        }
+    }
 }
