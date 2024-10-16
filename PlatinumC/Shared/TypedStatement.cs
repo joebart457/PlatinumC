@@ -352,6 +352,9 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);     
             Expression.Visit(context);
+            if ((Expression is TypedCall typedCall && typedCall.ResolvedType.Is(SupportedType.Void)) || Expression is TypedCallImportedFunction typedCallImportedFunction && typedCallImportedFunction.ResolvedType.Is(SupportedType.Void))
+                return;
+            context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
         }
 
     }

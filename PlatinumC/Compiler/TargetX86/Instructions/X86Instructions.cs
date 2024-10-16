@@ -34,7 +34,6 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Add_Register_Register Add(X86Register destination, X86Register source) => new Add_Register_Register(destination, source);
 
         public static Pop_Register Pop(X86Register destination) => new Pop_Register(destination);
-        
 
 
         public static IDiv IDiv(RegisterOffset divisor) => new IDiv(divisor);

@@ -11,12 +11,13 @@ import msvcrt cdecl void printf_num(string msg, int num) from 'printf';
 void Main(){
 	ptr hConsole = GetStdHandle(-11);
 	WriteFile(hConsole, "Hello, world!", 12, 0, 0);
-
+	int w = 9;
 	int x = 5;
 	if (x - 5 == 0){
 		WriteFile(hConsole, "This should print", 19, 0, 0);
 	}else {
 		WriteFile(hConsole, "This should not print", 23, 0, 0);
+		w = 10;
 	}
 	int* y = &x;
 	*y = 98;
