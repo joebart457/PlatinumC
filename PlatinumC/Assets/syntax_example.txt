@@ -29,6 +29,11 @@ void Main(){
 		counter = AddOne(counter);
 	}
 
+	byte b = 1b;
+	if ((b & 3b) == 1b){
+		printf_num("bytes work %d times", 1);
+	}
+
 	ExitProcess(0);
 }
 

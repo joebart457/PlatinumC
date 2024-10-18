@@ -385,11 +385,13 @@ namespace PlatinumC.Parser
             if (AdvanceIfMatch(BuiltinTokenTypes.Word)) return new Identifier(Previous());
             if (AdvanceIfMatch(BuiltinTokenTypes.String)) return new LiteralString(Previous(), Previous().Lexeme);
             if (AdvanceIfMatch(BuiltinTokenTypes.Integer)) return new LiteralInteger(Previous(), int.Parse(Previous().Lexeme));
-            if(AdvanceIfMatch(BuiltinTokenTypes.Float)) return new LiteralFloatingPoint(Previous(), float.Parse(Previous().Lexeme));
+            if (AdvanceIfMatch(BuiltinTokenTypes.Byte)) return new LiteralByte(Previous(), byte.Parse(Previous().Lexeme));
+            if (AdvanceIfMatch(BuiltinTokenTypes.Float)) return new LiteralFloatingPoint(Previous(), float.Parse(Previous().Lexeme));
             if (AdvanceIfMatch(TokenTypes.Minus))
             {
                 if (AdvanceIfMatch(BuiltinTokenTypes.Integer)) return new LiteralInteger(Previous(), -int.Parse(Previous().Lexeme));
                 if (AdvanceIfMatch(BuiltinTokenTypes.Float)) return new LiteralFloatingPoint(Previous(), -float.Parse(Previous().Lexeme));
+
                 throw new ParsingException(Previous(), "unsupported right hand side of unary -");
             }
             if (AdvanceIfMatch(TokenTypes.LParen))

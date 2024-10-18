@@ -134,6 +134,25 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Label(ifLabel));
                 ThenDo.Visit(context);
                 context.AddInstruction(X86Instructions.Label(endLabel));
+            } 
+            else if (Condition is TypedBinaryComparison_Byte_Byte comparison_Byte_Byte)
+            {
+                comparison_Byte_Byte.Lhs.Visit(context);
+                comparison_Byte_Byte.Rhs.Visit(context);
+                context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+                context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
+                context.AddInstruction(X86Instructions.Cmp(X86ByteRegister.bl, X86ByteRegister.al));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.Equal) context.AddInstruction(X86Instructions.Jz(ifLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Jnz(ifLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.GreaterThan) context.AddInstruction(X86Instructions.JmpGt(ifLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.GreaterThanEqual) context.AddInstruction(X86Instructions.JmpGte(ifLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.LessThan) context.AddInstruction(X86Instructions.JmpLt(ifLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.LessThanEqual) context.AddInstruction(X86Instructions.JmpLte(ifLabel));
+                ElseDo?.Visit(context);
+                context.AddInstruction(X86Instructions.Jmp(endLabel));
+                context.AddInstruction(X86Instructions.Label(ifLabel));
+                ThenDo.Visit(context);
+                context.AddInstruction(X86Instructions.Label(endLabel));
             } else throw new NotImplementedException();
 
         }
@@ -215,6 +234,27 @@ namespace PlatinumC.Shared
                 if (comparison_Float_Float.ComparisonType == ComparisonType.GreaterThanEqual) context.AddInstruction(X86Instructions.Jae(bodyLabel));
                 if (comparison_Float_Float.ComparisonType == ComparisonType.LessThan) context.AddInstruction(X86Instructions.Jb(bodyLabel));
                 if (comparison_Float_Float.ComparisonType == ComparisonType.LessThanEqual) context.AddInstruction(X86Instructions.Jbe(bodyLabel));
+                context.AddInstruction(X86Instructions.Jmp(endLabel));
+                context.AddInstruction(X86Instructions.Label(bodyLabel));
+                ThenDo.Visit(context);
+                context.AddInstruction(X86Instructions.Jmp(startLabel));
+                context.AddInstruction(X86Instructions.Label(endLabel));
+            }
+            else if (Condition is TypedBinaryComparison_Byte_Byte comparison_Byte_Byte)
+            {
+                context.AddInstruction(X86Instructions.Label(startLabel));
+                comparison_Byte_Byte.Lhs.Visit(context);
+                comparison_Byte_Byte.Rhs.Visit(context);
+                context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+                context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
+                context.AddInstruction(X86Instructions.Cmp(X86ByteRegister.bl, X86ByteRegister.al));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.Equal) context.AddInstruction(X86Instructions.Jz(bodyLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Jnz(bodyLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.GreaterThan) context.AddInstruction(X86Instructions.JmpGt(bodyLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.GreaterThanEqual) context.AddInstruction(X86Instructions.JmpGte(bodyLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.LessThan) context.AddInstruction(X86Instructions.JmpLt(bodyLabel));
+                if (comparison_Byte_Byte.ComparisonType == ComparisonType.LessThanEqual) context.AddInstruction(X86Instructions.JmpLte(bodyLabel));
+
                 context.AddInstruction(X86Instructions.Jmp(endLabel));
                 context.AddInstruction(X86Instructions.Label(bodyLabel));
                 ThenDo.Visit(context);

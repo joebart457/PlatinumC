@@ -59,5 +59,11 @@ namespace PlatinumC.Shared
         {
             throw new NotImplementedException();
         }
+
+        public override string ToString()
+        {
+            if (IsPointer) return $"{UnderlyingType}*";
+            return $"{SupportedType}";
+        }
     }
 }

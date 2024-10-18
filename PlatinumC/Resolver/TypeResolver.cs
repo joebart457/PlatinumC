@@ -331,7 +331,7 @@ namespace PlatinumC.Resolver
             if (typeToCastTo.Is(SupportedType.Void)) throw new ParsingException(cast.Token, "cannot cast to void type");
             if (typeToCastTo.IsPointer && rhs.ResolvedType.IsPointer)
             {
-                if (typeToCastTo.UnderlyingType.Is(SupportedType.Void)) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
+                if (typeToCastTo.UnderlyingType!.Is(SupportedType.Void)) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
                 if (typeToCastTo.ReferencedTypeSize == rhs.ResolvedType.ReferencedTypeSize) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
                 throw new ParsingException(cast.Token, $"unable to cast from pointer type {rhs.ResolvedType} to type {typeToCastTo}. Underlying types must be of equal size.");
             }
@@ -355,6 +355,8 @@ namespace PlatinumC.Resolver
         internal TypedStatement Accept(IfStatement ifStatement)
         {
             var condition = ifStatement.Condition.Visit(this);
+            if (!(condition.ResolvedType.Is(SupportedType.Int) || condition.ResolvedType.Is(SupportedType.Byte)))
+                throw new ParsingException(ifStatement.Token, "expect condition to resolve to integer or byte type");
             var thenDo = ifStatement.ThenDo.Visit(this);
             var elseDo = ifStatement.ElseDo?.Visit(this);
             return new TypedIfStatement(ifStatement, condition, thenDo, elseDo);
@@ -363,6 +365,8 @@ namespace PlatinumC.Resolver
         internal TypedStatement Accept(WhileStatement whileStatement)
         {
             var condition = whileStatement.Condition.Visit(this);
+            if (!(condition.ResolvedType.Is(SupportedType.Int) || condition.ResolvedType.Is(SupportedType.Byte)))
+                throw new ParsingException(whileStatement.Token, "expect condition to resolve to integer or byte type");
             _loops.Push(new());
             var thenDo = whileStatement.ThenDo.Visit(this);
             _loops.Pop();
