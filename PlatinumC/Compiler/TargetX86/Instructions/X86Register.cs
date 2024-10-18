@@ -17,4 +17,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         esp,
         ebp,
     }
+
+    public enum X86ByteRegister
+    {
+        al,
+        bl,
+    }
 }

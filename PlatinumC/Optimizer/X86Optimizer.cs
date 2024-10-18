@@ -371,7 +371,7 @@ namespace PlatinumC.Optimizer
                         // If the register is not referenced after the mov, it can be removed
                         if (!IsReferenced(fn.Instructions, i + 1, mov_Register_Register.Destination)) continue;
                     }
-                    if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
+                    else if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
                     {
                         if (!IsLocalReferenced(fn.Instructions, i + 1, mov_Offset_Immediate.Destination)) continue;
                     }
@@ -444,8 +444,15 @@ namespace PlatinumC.Optimizer
                                 continue;
                             }        
                         }
-                    }else if (instruction is Push_Offset push_offset)
+                    }
+                    else if (instruction is Push_Offset push_offset)
                     {
+                        if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_Register_Immediate && add_Register_Immediate.Value == 4 && add_Register_Immediate.Destination == X86Register.esp)
+                        {
+                            // essentially poping the stack to nowhere
+                            i++;
+                            continue;
+                        }
                         var pushSource = RegisterOffsetOrImmediate.Create(push_offset.Offset);
                         var registerWithSameValueIndex = _registerValues.Keys.ToList().FindIndex(key => _registerValues[key].Equals(pushSource));
                         if (registerWithSameValueIndex != -1)
@@ -465,6 +472,12 @@ namespace PlatinumC.Optimizer
                         if (Peek(fn.Instructions, i + 1) is Pop_Register pop_register)
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_register.Destination, push_immediate.Immediate)));
+                            i++;
+                            continue;
+                        }
+                        else if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_Register_Immediate && add_Register_Immediate.Value == 4 && add_Register_Immediate.Destination == X86Register.esp)
+                        {
+                            // essentially poping the stack to nowhere
                             i++;
                             continue;
                         }

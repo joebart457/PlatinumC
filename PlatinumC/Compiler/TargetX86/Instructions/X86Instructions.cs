@@ -26,12 +26,27 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Mov_Offset_Immediate Mov(RegisterOffset destination, int immediate) => new Mov_Offset_Immediate(destination, immediate);
         public static Mov_Register_Register Mov(X86Register destination, X86Register source) => new Mov_Register_Register(destination, source);
         public static Mov_Register_Immediate Mov(X86Register destination, int immediate) => new Mov_Register_Immediate(destination, immediate);
+        public static Mov_Register_Immediate__Byte Mov(X86ByteRegister destination, byte immediate) => new Mov_Register_Immediate__Byte(destination, immediate);
+
+        public static Mov_Offset_Register__Byte Mov(RegisterOffset destination, X86ByteRegister source) => new Mov_Offset_Register__Byte(destination, source);
+        public static Mov_Register_Offset__Byte Mov(X86ByteRegister destination, RegisterOffset source) => new Mov_Register_Offset__Byte(destination, source);
+        public static Movsx Movsx(X86Register destination, X86ByteRegister source) => new Movsx(destination, source);
+        public static Movzx Movzx(X86Register destination, X86ByteRegister source) => new Movzx(destination, source);
 
         public static Sub Sub(X86Register destination, int valueToSubtract) => new Sub(destination, valueToSubtract);
         public static Sub_Register_Register Sub(X86Register destination, X86Register source) => new Sub_Register_Register(destination, source);
 
         public static Add_Register_Immediate Add(X86Register destination, int value) => new Add_Register_Immediate(destination, value);
         public static Add_Register_Register Add(X86Register destination, X86Register source) => new Add_Register_Register(destination, source);
+
+
+        public static And_Register_Register And(X86Register destination, X86Register source) => new And_Register_Register(destination, source);
+        public static Or_Register_Register Or(X86Register destination, X86Register source) => new Or_Register_Register(destination, source);
+        public static Xor_Register_Register Xor(X86Register destination, X86Register source) => new Xor_Register_Register(destination, source);
+        public static And_Register_Register__Byte And(X86ByteRegister destination, X86ByteRegister source) => new And_Register_Register__Byte(destination, source);
+        public static Or_Register_Register__Byte Or(X86ByteRegister destination, X86ByteRegister source) => new Or_Register_Register__Byte(destination, source);
+        public static Xor_Register_Register__Byte Xor(X86ByteRegister destination, X86ByteRegister source) => new Xor_Register_Register__Byte(destination, source);
+
 
         public static Pop_Register Pop(X86Register destination) => new Pop_Register(destination);
 
@@ -61,7 +76,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Test Test(X86Register operand1, X86Register operand2) => new Test(operand1, operand2);
         public static Test_Offset Test(X86Register operand1, RegisterOffset operand2) => new Test_Offset(operand1, operand2);
         public static Cmp Cmp(X86Register operand1, X86Register operand2) => new Cmp(operand1, operand2);
-
+        public static Cmp_Byte_Byte Cmp(X86ByteRegister operand1, X86ByteRegister operand2) => new Cmp_Byte_Byte(operand1, operand2);
 
         public static Call Call(string callee, bool isIndirect) => new Call(callee, isIndirect);
         public static Label Label(string text) => new Label(text);
@@ -74,6 +89,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Fstp_Register Fstp(X87Register register) => new Fstp_Register(register);
         public static Fld Fld(RegisterOffset source) => new Fld(source);
         public static Fild Fild(RegisterOffset source) => new Fild(source);
+        public static Fistp Fistp(RegisterOffset source) => new Fistp(source);
         public static FAddp FAddp(RegisterOffset source) => new FAddp(source);
         public static FiAddp FiAddp(RegisterOffset source) => new FiAddp(source);
         public static FSubp FSubp(RegisterOffset source) => new FSubp(source);

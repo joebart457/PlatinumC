@@ -153,7 +153,8 @@ namespace PlatinumC.Resolver
                 return new TypedBinaryAddition_Pointer_Integer(binaryAddition, lhs.ResolvedType, lhs, rhs);
             }
             else throw new ParsingException(binaryAddition.Token, $"addition is not supported for types {lhs.ResolvedType} and {rhs.ResolvedType}");
-        }
+        }    
+
 
         internal TypedExpression Accept(BinarySubtraction binarySubtraction)
         {
@@ -230,6 +231,11 @@ namespace PlatinumC.Resolver
                 if (!(rhs.ResolvedType.Is(SupportedType.Int) || rhs.ResolvedType.Is(lhs.ResolvedType))) throw new ParsingException(binaryComparison.Token, $"right hand side of pointer comparison must be an integer or another pointer");
                 return new TypedBinaryComparison_Integer_Integer(binaryComparison, ResolvedType.Create(SupportedType.Int), lhs, rhs, binaryComparison.ComparisonType);
             }
+            else if (lhs.ResolvedType.Is(SupportedType.Byte))
+            {
+                if (!rhs.ResolvedType.Is(SupportedType.Byte)) throw new ParsingException(binaryComparison.Token, $"right hand side of byte comparison must be another byte");
+                return new TypedBinaryComparison_Byte_Byte(binaryComparison, ResolvedType.Create(SupportedType.Int), lhs, rhs, binaryComparison.ComparisonType);
+            }
             else throw new ParsingException(binaryComparison.Token, $"comparison is not supported for types {lhs.ResolvedType} and {rhs.ResolvedType}");
         }
 
@@ -255,6 +261,39 @@ namespace PlatinumC.Resolver
             throw new ParsingException(binaryLogicalOr.Token, $"logical or operator is not supported for types {lhs.ResolvedType} and {rhs.ResolvedType}");
         }
 
+        internal TypedExpression Accept(BinaryBitwiseAnd binaryBitwiseAnd)
+        {
+            var lhs = binaryBitwiseAnd.Lhs.Visit(this);
+            var rhs = binaryBitwiseAnd.Rhs.Visit(this);
+            if (lhs.ResolvedType.Is(SupportedType.Int) && rhs.ResolvedType.Is(SupportedType.Int))
+                return new TypedBinaryAnd_Integer_Integer(binaryBitwiseAnd, ResolvedType.Create(SupportedType.Int), lhs, rhs);
+            if (lhs.ResolvedType.Is(SupportedType.Byte) && rhs.ResolvedType.Is(SupportedType.Byte))
+                return new TypedBinaryAnd_Byte_Byte(binaryBitwiseAnd, ResolvedType.Create(SupportedType.Byte), lhs, rhs);
+            throw new ParsingException(binaryBitwiseAnd.Token, $"bitwise and is not supported for types {lhs.ResolvedType} and {rhs.ResolvedType}");
+        }
+
+        internal TypedExpression Accept(BinaryBitwiseOr binaryBitwiseOr)
+        {
+            var lhs = binaryBitwiseOr.Lhs.Visit(this);
+            var rhs = binaryBitwiseOr.Rhs.Visit(this);
+            if (lhs.ResolvedType.Is(SupportedType.Int) && rhs.ResolvedType.Is(SupportedType.Int))
+                return new TypedBinaryOr_Integer_Integer(binaryBitwiseOr, ResolvedType.Create(SupportedType.Int), lhs, rhs);
+            if (lhs.ResolvedType.Is(SupportedType.Byte) && rhs.ResolvedType.Is(SupportedType.Byte))
+                return new TypedBinaryOr_Byte_Byte(binaryBitwiseOr, ResolvedType.Create(SupportedType.Byte), lhs, rhs);
+            throw new ParsingException(binaryBitwiseOr.Token, $"bitwise or is not supported for types {lhs.ResolvedType} and {rhs.ResolvedType}");
+        }
+
+        internal TypedExpression Accept(BinaryBitwiseXor binaryBitwiseXor)
+        {
+            var lhs = binaryBitwiseXor.Lhs.Visit(this);
+            var rhs = binaryBitwiseXor.Rhs.Visit(this);
+            if (lhs.ResolvedType.Is(SupportedType.Int) && rhs.ResolvedType.Is(SupportedType.Int))
+                return new TypedBinaryXor_Integer_Integer(binaryBitwiseXor, ResolvedType.Create(SupportedType.Int), lhs, rhs);
+            if (lhs.ResolvedType.Is(SupportedType.Byte) && rhs.ResolvedType.Is(SupportedType.Byte))
+                return new TypedBinaryXor_Byte_Byte(binaryBitwiseXor, ResolvedType.Create(SupportedType.Byte), lhs, rhs);
+            throw new ParsingException(binaryBitwiseXor.Token, $"bitwise xor is not supported for types {lhs.ResolvedType} and {rhs.ResolvedType}");
+        }
+
         internal TypedExpression Accept(LiteralString literalString)
         {
             return new TypedLiteralString(literalString, new ResolvedType(SupportedType.Ptr, ResolvedType.Create(SupportedType.Byte)), literalString.Value);
@@ -270,10 +309,33 @@ namespace PlatinumC.Resolver
             return new TypedLiteralFloatingPoint(literalFloatingPoint, ResolvedType.Create(SupportedType.Float), literalFloatingPoint.Value);
         }
 
+        internal TypedExpression Accept(LiteralByte literalByte)
+        {
+            return new TypedLiteralByte(literalByte, ResolvedType.Create(SupportedType.Byte), literalByte.Value);
+        }
+
         internal TypedExpression Accept(Group group)
         {
             var resolvedExpression = group.Expression.Visit(this);
             return new TypedGroup(group, resolvedExpression.ResolvedType, resolvedExpression);
+        }
+
+        internal TypedExpression Accept(Cast cast)
+        {
+            var typeToCastTo = Resolve(cast.TypeToCastTo);
+            var rhs = cast.Rhs.Visit(this);
+            if (typeToCastTo.Equals(rhs.ResolvedType)) return rhs; // Types are the same, no cast needed
+            if (typeToCastTo.Is(SupportedType.Int) && rhs.ResolvedType.Is(SupportedType.Float)) return new TypedCast_Integer_From_Float(cast, ResolvedType.Create(SupportedType.Int), rhs);
+            if (typeToCastTo.Is(SupportedType.Int) && rhs.ResolvedType.Is(SupportedType.Byte)) return new TypedCast_Integer_From_Byte(cast, ResolvedType.Create(SupportedType.Int), rhs);
+            if (typeToCastTo.Is(SupportedType.Float) && rhs.ResolvedType.Is(SupportedType.Int)) return new TypedCast_Float_From_Integer(cast, ResolvedType.Create(SupportedType.Float), rhs);
+            if (typeToCastTo.Is(SupportedType.Void)) throw new ParsingException(cast.Token, "cannot cast to void type");
+            if (typeToCastTo.IsPointer && rhs.ResolvedType.IsPointer)
+            {
+                if (typeToCastTo.UnderlyingType.Is(SupportedType.Void)) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
+                if (typeToCastTo.ReferencedTypeSize == rhs.ResolvedType.ReferencedTypeSize) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
+                throw new ParsingException(cast.Token, $"unable to cast from pointer type {rhs.ResolvedType} to type {typeToCastTo}. Underlying types must be of equal size.");
+            }
+            throw new ParsingException(cast.Token, $"unable to cast type {rhs.ResolvedType} to type {typeToCastTo}");
         }
 
 
@@ -445,5 +507,7 @@ namespace PlatinumC.Resolver
                 throw new ParsingException(dereferenceAssignment.Token, $"expect value of type {assignmentTarget.ResolvedType} but got {valueToAssign.ResolvedType} on right hand side of assignment");
             return new TypedDereferenceAssignment(dereferenceAssignment, assignmentTarget.ResolvedType, typedDereference, valueToAssign);
         }
+
+        
     }
 }

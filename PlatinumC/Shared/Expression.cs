@@ -235,6 +235,57 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class BinaryBitwiseAnd : Expression
+    {
+        public Expression Lhs { get; set; }
+        public Expression Rhs { get; set; }
+        public BinaryBitwiseAnd(IToken token, Expression lhs, Expression rhs)
+            : base(token)
+        {
+            Lhs = lhs;
+            Rhs = rhs;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
+    public class BinaryBitwiseOr : Expression
+    {
+        public Expression Lhs { get; set; }
+        public Expression Rhs { get; set; }
+        public BinaryBitwiseOr(IToken token, Expression lhs, Expression rhs)
+            : base(token)
+        {
+            Lhs = lhs;
+            Rhs = rhs;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
+    public class BinaryBitwiseXor : Expression
+    {
+        public Expression Lhs { get; set; }
+        public Expression Rhs { get; set; }
+        public BinaryBitwiseXor(IToken token, Expression lhs, Expression rhs)
+            : base(token)
+        {
+            Lhs = lhs;
+            Rhs = rhs;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
 
     public class LiteralString : Expression
     {
@@ -278,6 +329,20 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class LiteralByte : Expression
+    {
+        public byte Value { get; set; }
+        public LiteralByte(IToken token, byte value) : base(token)
+        {
+            Value = value;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
     public class Group : Expression
     {
         public Expression Expression { get; set; }
@@ -285,6 +350,24 @@ namespace PlatinumC.Shared
         public Group(IToken token, Expression expression) : base(token)
         {
             Expression = expression;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+
+    }
+
+    public class Cast : Expression
+    {
+        public TypeSymbol TypeToCastTo { get; set; }    
+        public Expression Rhs { get; set; }
+
+        public Cast(IToken token, TypeSymbol typeToCastTo, Expression rhs) : base(token)
+        {
+            TypeToCastTo = typeToCastTo;
+            Rhs = rhs;
         }
 
         public override TypedExpression Visit(TypeResolver resolver)

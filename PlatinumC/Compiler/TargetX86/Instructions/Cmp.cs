@@ -21,4 +21,20 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
             return $"cmp {Operand1}, {Operand2}";
         }
     }
+
+    public class Cmp_Byte_Byte : X86Instruction
+    {
+        public X86ByteRegister Operand1 { get; set; }
+        public X86ByteRegister Operand2 { get; set; }
+        public Cmp_Byte_Byte(X86ByteRegister operand1, X86ByteRegister operand2)
+        {
+            Operand1 = operand1;
+            Operand2 = operand2;
+        }
+
+        public override string Emit()
+        {
+            return $"cmp {Operand1}, {Operand2}";
+        }
+    }
 }

@@ -11,6 +11,81 @@ namespace PlatinumC.Parser
 {
     public class ProgramParser: TokenParser
     {
+        private readonly List<(int precedence, List<BinaryOperator> operators)> BinaryOperators = new()
+        {
+            
+            (
+                3,
+                new()
+                {
+                    new(3, TokenTypes.Asterisk, (token, lhs, rhs) => new BinaryMultiplication(token, lhs, rhs)),
+                    new(3, TokenTypes.ForwardSlash, (token, lhs, rhs) => new BinaryDivision(token, lhs, rhs)),
+                }
+            ),
+            (
+                4,
+                new()
+                {
+                    new(4, TokenTypes.Plus, (token, lhs, rhs) => new BinaryAddition(token, lhs, rhs)),
+                    new(4, TokenTypes.Minus, (token, lhs, rhs) => new BinarySubtraction(token, lhs, rhs)),
+
+                }
+            ),
+            (
+                6,
+                new()
+                {
+                    new(6, TokenTypes.LessThan, (token, lhs, rhs) => new BinaryComparison(token, lhs, rhs, ComparisonType.LessThan)),
+                    new(6, TokenTypes.LessThanEqual, (token, lhs, rhs) => new BinaryComparison(token, lhs, rhs, ComparisonType.LessThanEqual)),
+                    new(6, TokenTypes.GreaterThan, (token, lhs, rhs) => new BinaryComparison(token, lhs, rhs, ComparisonType.GreaterThan)),
+                    new(6, TokenTypes.GreaterThanEqual, (token, lhs, rhs) => new BinaryComparison(token, lhs, rhs, ComparisonType.GreaterThanEqual)),
+                }
+            ),
+            (
+                7,
+                new()
+                {
+                    new(7, TokenTypes.EqualEqual, (token, lhs, rhs) => new BinaryComparison(token, lhs, rhs, ComparisonType.Equal)),
+                    new(7, TokenTypes.NotEqual, (token, lhs, rhs) => new BinaryComparison(token, lhs, rhs, ComparisonType.NotEqual)),
+                }
+            ),
+            (
+                8,
+                new()
+                {
+                    new(8, TokenTypes.Ampersand, (token, lhs, rhs) => new BinaryBitwiseAnd(token, lhs, rhs)),
+                }
+            ),
+            (
+                9,
+                new()
+                {
+                    new(9, TokenTypes.Pipe, (token, lhs, rhs) => new BinaryBitwiseOr(token, lhs, rhs)),
+                }
+            ),
+            (
+                10,
+                new()
+                {
+                    new(10, TokenTypes.UpCarat, (token, lhs, rhs) => new BinaryBitwiseXor(token, lhs, rhs)),
+                }
+            ),
+            (
+                11,
+                new()
+                {
+                    new(11, TokenTypes.And, (token, lhs, rhs) => new BinaryLogicalAnd(token, lhs, rhs)),
+                }
+            ),
+            (
+                12,
+                new()
+                {
+                    new(12, TokenTypes.Or, (token, lhs, rhs) => new BinaryLogicalOr(token, lhs, rhs)),
+                }
+            ),
+
+        };
         public ParsingResult ParseFile(string path, out List<ParsingException> errors)
         {
             return ParseText(File.ReadAllText(path), out errors);
@@ -218,9 +293,25 @@ namespace PlatinumC.Parser
             return ParseAssignment();
         }
 
+        public Expression ParseBinary(int? index = null)
+        {
+            if (index == null) index = BinaryOperators.Count - 1;
+            if (index < 0)
+                return ParseCall();
+            var expression = ParseBinary(index - 1);
+            var operators = BinaryOperators[index.Value].operators;
+            var matchedOperator = operators.FirstOrDefault(x => Match(x.OperatorTokenType));
+            if (matchedOperator != null)
+            {
+                var operatorToken = Consume(matchedOperator.OperatorTokenType, "expect operator");
+                expression = matchedOperator.Yield(operatorToken, expression, ParseBinary(index));
+            }
+            return expression;
+        }
+
         public Expression ParseAssignment()
         {
-            var expression = ParseBinaryLogicalAnd();
+            var expression = ParseBinary();
             if (AdvanceIfMatch(TokenTypes.Equal))
             {
                 if (expression is Identifier identifier)
@@ -238,97 +329,6 @@ namespace PlatinumC.Parser
             return expression;
 
         }
-
-        public Expression ParseBinaryLogicalAnd()
-        {
-            var token = Previous();
-            var expression = ParseBinaryLogicalOr();
-            while (Match(TokenTypes.And))
-            {
-                var rhs = ParseExpression();
-
-                expression = new BinaryLogicalAnd(token, expression, rhs);
-            }
-            return expression;
-        }
-
-        public Expression ParseBinaryLogicalOr()
-        {
-            var token = Previous();
-            var expression = ParseBinaryComparison();
-            while (Match(TokenTypes.Or))
-            {
-                var rhs = ParseExpression();
-
-                expression = new BinaryLogicalOr(token, expression, rhs);
-            }
-            return expression;
-        }
-
-
-        public Expression ParseBinaryComparison()
-        {
-            var token = Previous();
-            var expression = ParseBinarySubtraction();
-            while (Match(TokenTypes.Comparison))
-            {
-                var comparisonType = ParseComparisonType();
-                var rhs = ParseExpression();
-
-                expression = new BinaryComparison(token, expression, rhs, comparisonType);
-            }
-            return expression;
-        }
-
-
-        public Expression ParseBinaryMultiplication()
-        {
-            var token = Previous();
-            var expression = ParseCall();
-            while (AdvanceIfMatch(TokenTypes.Asterisk))
-            {
-                var rhs = ParseCall();
-                expression = new BinaryMultiplication(token, expression, rhs);
-            }
-            return expression;
-        }
-
-        public Expression ParseBinaryDivision()
-        {
-            var token = Previous();
-            var expression = ParseBinaryMultiplication();
-            while (AdvanceIfMatch(TokenTypes.ForwardSlash))
-            {
-                var rhs = ParseBinaryMultiplication();
-                expression = new BinaryDivision(token, expression, rhs);
-            }
-            return expression;
-        }
-
-        public Expression ParseBinaryAddition()
-        {
-            var token = Previous();
-            var expression = ParseBinaryDivision();
-            while (AdvanceIfMatch(TokenTypes.Plus))
-            {
-                var rhs = ParseBinaryAddition();
-                expression = new BinaryAddition(token, expression, rhs);
-            }
-            return expression;
-        }
-
-        public Expression ParseBinarySubtraction()
-        {
-            var token = Previous();
-            var expression = ParseBinaryAddition();
-            while (AdvanceIfMatch(TokenTypes.Minus))
-            {
-                var rhs = ParseBinaryAddition();
-                expression = new BinarySubtraction(token, expression, rhs);
-            }
-            return expression;
-        }
-
 
         public Expression ParseCall()
         {
@@ -415,18 +415,7 @@ namespace PlatinumC.Parser
             if (Enum.TryParse<CallingConvention>(token.Lexeme, out var callingConvention)) return callingConvention;
             throw new ParsingException(token, $"expected calling convention but got {token.Lexeme}");
         }
-
-        private ComparisonType ParseComparisonType()
-        {
-            var token = Consume(TokenTypes.Comparison, "expect comparison");
-            if (token.Lexeme == "==") return ComparisonType.Equal;
-            if (token.Lexeme == "!=") return ComparisonType.NotEqual;
-            if (token.Lexeme == ">") return ComparisonType.GreaterThan;
-            if (token.Lexeme == ">=") return ComparisonType.GreaterThanEqual;
-            if (token.Lexeme == "<") return ComparisonType.LessThan;
-            if (token.Lexeme == "<=") return ComparisonType.LessThanEqual;
-            throw new ParsingException(token, $"expected comparison but got {token.Lexeme}");
-        }
+        
         private TypeSymbol ParseTypeSymbol(TypeSymbol? typeSymbol = null)
         {
             if (typeSymbol == null)
@@ -452,5 +441,20 @@ namespace PlatinumC.Parser
             throw new ParsingException(token, $"expected type but got {token.Lexeme}");
         }
 
+    }
+
+    public class BinaryOperator
+    {
+        public int Precedence { get; set; }
+        public string OperatorTokenType { get; set; }
+        public Func<IToken, Expression, Expression, Expression> ExpressionGenerator { get; set; }
+        public BinaryOperator(int precedence, string operatorTokenType, Func<IToken, Expression, Expression, Expression> expressionGenerator)
+        {
+            Precedence = precedence;
+            OperatorTokenType = operatorTokenType;
+            ExpressionGenerator = expressionGenerator;
+        }
+
+        public Expression Yield(IToken token, Expression lhs, Expression rhs) => ExpressionGenerator(token, lhs, rhs);
     }
 }

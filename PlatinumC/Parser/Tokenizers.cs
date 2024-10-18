@@ -38,6 +38,15 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.Equal, "="),
                     new TokenizerRule(TokenTypes.Arrow, "->"),
                     new TokenizerRule(TokenTypes.Ampersand, "&"),
+                    new TokenizerRule(TokenTypes.LessThan, "<"),
+                    new TokenizerRule(TokenTypes.LessThanEqual, "<="),
+                    new TokenizerRule(TokenTypes.GreaterThan, ">"),
+                    new TokenizerRule(TokenTypes.GreaterThanEqual, ">="),
+                    new TokenizerRule(TokenTypes.EqualEqual, "=="),
+                    new TokenizerRule(TokenTypes.NotEqual, "!="),
+
+                    new TokenizerRule(TokenTypes.Pipe, "|"),
+                    new TokenizerRule(TokenTypes.UpCarat, "^"),
 
                     new TokenizerRule(TokenTypes.CallingConvention, CallingConvention.Cdecl.ToString(), ignoreCase: true),
                     new TokenizerRule(TokenTypes.CallingConvention, CallingConvention.StdCall.ToString(), ignoreCase: true),
@@ -48,13 +57,6 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.SupportedType, SupportedType.Void.ToString().ToLower()),
                     new TokenizerRule(TokenTypes.SupportedType, SupportedType.String.ToString().ToLower()),
                     new TokenizerRule(TokenTypes.SupportedType, SupportedType.Ptr.ToString().ToLower()),
-
-                    new TokenizerRule(TokenTypes.Comparison, ">", ignoreCase: true),
-                    new TokenizerRule(TokenTypes.Comparison, ">=", ignoreCase: true),
-                    new TokenizerRule(TokenTypes.Comparison, "<", ignoreCase: true),
-                    new TokenizerRule(TokenTypes.Comparison, "<=", ignoreCase: true),
-                    new TokenizerRule(TokenTypes.Comparison, "==", ignoreCase: true),
-                    new TokenizerRule(TokenTypes.Comparison, "!=", ignoreCase: true),
 
                     new TokenizerRule(BuiltinTokenTypes.EndOfLineComment, "//"),
                     new TokenizerRule(BuiltinTokenTypes.String, "\"", enclosingLeft: "\"", enclosingRight: "\""),

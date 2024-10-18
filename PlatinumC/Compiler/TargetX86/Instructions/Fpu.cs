@@ -66,6 +66,21 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
+    public class Fistp : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public Fistp(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fistp {Source}";
+        }
+    }
+
     public class FAddp : X86Instruction
     {
         public RegisterOffset Source { get; set; }

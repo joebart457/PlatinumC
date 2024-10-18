@@ -13,7 +13,6 @@ namespace PlatinumC.Parser.Constants
 
         public const string CallingConvention = "CallingConvention";
         public const string SupportedType = "SupportedType";
-        public const string Comparison = "Comparison";
 
         public const string LParen = "LParen";
         public const string RParen = "RParen";
@@ -42,5 +41,15 @@ namespace PlatinumC.Parser.Constants
 
         public const string Arrow = "Arrow";
         public const string Ampersand = "Ampersand";
+
+        public static string LessThan = "LessThan";
+        public static string LessThanEqual = "LessThanEqual";
+        public static string GreaterThan = "GreaterThan";
+        public static string GreaterThanEqual = "GreaterThanEqual";
+        public static string EqualEqual = "EqualEqual";
+        public static string NotEqual = "NotEqual";
+
+        public static string Pipe = "Pipe";
+        public static string UpCarat = "UpCarat";
     }
 }
