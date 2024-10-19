@@ -366,17 +366,35 @@ namespace PlatinumC.Parser
 
         public Expression ParseUnary()
         {
-            if (AdvanceIfMatch(TokenTypes.Asterisk))
+            Expression? expression = null;
+            while(Match(TokenTypes.Asterisk) || Match(TokenTypes.Ampersand) || Match(TokenTypes.Not) || Match(TokenTypes.BitwiseNot))
             {
-                var token = Previous();
-                var expresion = ParsePrimary();
-                return new Dereference(token, expresion);
+                if (AdvanceIfMatch(TokenTypes.Asterisk))
+                {
+                    var token = Previous();
+                    var expresion = ParseCall();
+                    expression = new Dereference(token, expresion);
+                }
+                else if (AdvanceIfMatch(TokenTypes.Ampersand))
+                {
+                    var identifier = Consume(BuiltinTokenTypes.Word, "expect symbol to reference");
+                    expression = new Reference(identifier);
+                }
+                else if (AdvanceIfMatch(TokenTypes.Not))
+                {
+                    var token = Previous();
+                    var expresion = ParseCall();
+                    expression = new UnaryNot(token, expresion);
+                }
+                else if (AdvanceIfMatch(TokenTypes.BitwiseNot))
+                {
+                    var token = Previous();
+                    var expresion = ParseCall();
+                    expression = new UnaryNegation(token, expresion);
+                }
+                else throw new ParsingException(Current(), $"unable to determine unary operation");
             }
-            if (AdvanceIfMatch(TokenTypes.Ampersand))
-            {
-                var identifier = Consume(BuiltinTokenTypes.Word, "expect symbol to reference");
-                return new Reference(identifier);
-            }
+            if (expression != null) return expression;
             return ParsePrimary();
         }
 

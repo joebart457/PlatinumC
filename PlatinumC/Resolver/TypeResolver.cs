@@ -512,6 +512,24 @@ namespace PlatinumC.Resolver
             return new TypedDereferenceAssignment(dereferenceAssignment, assignmentTarget.ResolvedType, typedDereference, valueToAssign);
         }
 
-        
+        internal TypedExpression Accept(UnaryNegation unaryNegation)
+        {
+            var rhs = unaryNegation.Rhs.Visit(this);
+
+            if (rhs.ResolvedType.Is(SupportedType.Int)) return new TypedUnary_Negation_Integer(unaryNegation, ResolvedType.Create(SupportedType.Int), rhs);
+            if (rhs.ResolvedType.Is(SupportedType.Byte)) return new TypedUnary_Negation_Integer(unaryNegation, ResolvedType.Create(SupportedType.Byte), rhs);
+
+            throw new ParsingException(unaryNegation.Token, $"unable to perform negation on type {rhs.ResolvedType}");
+        }
+
+        internal TypedExpression Accept(UnaryNot unaryNot)
+        {
+            var rhs = unaryNot.Rhs.Visit(this);
+
+            if (rhs.ResolvedType.Is(SupportedType.Int)) return new TypedUnary_Negation_Integer(unaryNot, ResolvedType.Create(SupportedType.Int), rhs);
+            if (rhs.ResolvedType.Is(SupportedType.Byte)) return new TypedUnary_Negation_Integer(unaryNot, ResolvedType.Create(SupportedType.Byte), rhs);
+
+            throw new ParsingException(unaryNot.Token, $"unable to perform bitwise negation on type {rhs.ResolvedType}");
+        }
     }
 }

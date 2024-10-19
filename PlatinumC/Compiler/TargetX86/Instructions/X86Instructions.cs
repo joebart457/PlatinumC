@@ -50,6 +50,8 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
 
         public static Pop_Register Pop(X86Register destination) => new Pop_Register(destination);
 
+        public static Neg Neg(RegisterOffset divisor) => new Neg(divisor);
+        public static Not Not(RegisterOffset divisor) => new Not(divisor);
 
         public static IDiv IDiv(RegisterOffset divisor) => new IDiv(divisor);
         public static IMul IMul(X86Register destination, X86Register source) => new IMul(destination, source);
@@ -76,6 +78,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Test Test(X86Register operand1, X86Register operand2) => new Test(operand1, operand2);
         public static Test_Offset Test(X86Register operand1, RegisterOffset operand2) => new Test_Offset(operand1, operand2);
         public static Cmp Cmp(X86Register operand1, X86Register operand2) => new Cmp(operand1, operand2);
+        public static Cmp_Register_Immediate Cmp(X86Register operand1, int operand2) => new Cmp_Register_Immediate(operand1, operand2);
         public static Cmp_Byte_Byte Cmp(X86ByteRegister operand1, X86ByteRegister operand2) => new Cmp_Byte_Byte(operand1, operand2);
 
         public static Call Call(string callee, bool isIndirect) => new Call(callee, isIndirect);

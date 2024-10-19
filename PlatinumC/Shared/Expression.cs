@@ -286,6 +286,36 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class UnaryNegation : Expression
+    {
+        public Expression Rhs { get; set; }
+        public UnaryNegation(IToken token, Expression rhs)
+            : base(token)
+        {
+            Rhs = rhs;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
+    public class UnaryNot : Expression
+    {
+        public Expression Rhs { get; set; }
+        public UnaryNot(IToken token, Expression rhs)
+            : base(token)
+        {
+            Rhs = rhs;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
 
     public class LiteralString : Expression
     {

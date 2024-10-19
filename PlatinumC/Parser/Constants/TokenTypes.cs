@@ -51,5 +51,7 @@ namespace PlatinumC.Parser.Constants
 
         public static string Pipe = "Pipe";
         public static string UpCarat = "UpCarat";
+        public static string Not = "Not";
+        public static string BitwiseNot = "BitwiseNot";
     }
 }

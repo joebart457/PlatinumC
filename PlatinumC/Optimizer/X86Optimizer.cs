@@ -1,4 +1,5 @@
-﻿using PlatinumC.Compiler;
+﻿using Microsoft.Win32;
+using PlatinumC.Compiler;
 using PlatinumC.Compiler.TargetX86.Instructions;
 
 namespace PlatinumC.Optimizer
@@ -137,7 +138,10 @@ namespace PlatinumC.Optimizer
             }
             else if (instruction is Call)
             {
-                _registerValues.Clear();
+                WipeRegister(X86Register.eax);
+                WipeRegister(X86Register.ebx);
+                WipeRegister(X86Register.ecx);
+                WipeRegister(X86Register.edx);
                 SetTopOfStack(null);
             }
             else if (instruction is Ret)
@@ -184,6 +188,30 @@ namespace PlatinumC.Optimizer
             {
                 WipeRegister(X86Register.edx);
             }
+            else if (instruction is And_Register_Register and_Register_Register)
+            {
+                WipeRegister(and_Register_Register.Destination);
+            }
+            else if (instruction is Or_Register_Register or_Register_Register)
+            {
+                WipeRegister(or_Register_Register.Destination);
+            }
+            else if (instruction is Xor_Register_Register xor_Register_Register)
+            {
+                WipeRegister(xor_Register_Register.Destination);
+            }
+            else if (instruction is And_Register_Register__Byte and_Register_Register__Byte)
+            {
+                WipeRegister(and_Register_Register__Byte.Destination.ToFullRegister());
+            }
+            else if (instruction is Or_Register_Register__Byte or_Register_Register__Byte)
+            {
+                WipeRegister(or_Register_Register__Byte.Destination.ToFullRegister());
+            }
+            else if (instruction is Xor_Register_Register__Byte xor_Register_Register__Byte)
+            {
+                WipeRegister(xor_Register_Register__Byte.Destination.ToFullRegister());
+            }
             else if (instruction is IMul imul)
             {
                 WipeRegister(imul.Destination);
@@ -191,6 +219,35 @@ namespace PlatinumC.Optimizer
             else if (instruction is Lea lea)
             {
                 WipeRegister(lea.Destination);
+            }
+            else if (instruction is Neg neg)
+            {
+                WipeMemory(neg.Operand);
+            }
+            else if (instruction is Not not)
+            {
+                WipeMemory(not.Operand);
+            }
+            else if (instruction is Movsx movsx)
+            {
+                WipeRegister(movsx.Destination);
+            }
+            else if (instruction is Movzx movzx)
+            {
+                WipeRegister(movzx.Destination);
+            }
+            else if (instruction is Mov_Register_Immediate__Byte mov_Register_Immediate__Byte)
+            {
+                WipeRegister(mov_Register_Immediate__Byte.Destination.ToFullRegister());
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+                WipeMemory(mov_Offset_Register__Byte.Destination);
+                WipeRegister(mov_Offset_Register__Byte.Source.ToFullRegister());
+            }
+            else if (instruction is Mov_Register_Offset__Byte mov_Register_Offset__Byte)
+            {
+                WipeRegister(mov_Register_Offset__Byte.Destination.ToFullRegister());
             }
             else if (instruction is IMul_Immediate imul_Immediate)
             {
@@ -271,14 +328,15 @@ namespace PlatinumC.Optimizer
 
         private CompilationResult MakeOpimizationPass2(CompilationResult compilationResult)
         {
-            _registerValues.Clear();
             foreach (var fn in compilationResult.FunctionData)
             {
+                _registerValues.Clear();
+                _memoryMap.Clear(); 
                 var optimizedInstructions = new List<X86Instruction>();
                 for (int i = 0; i < fn.Instructions.Count; i++)
                 {
                     var instruction = fn.Instructions[i];
-                    
+
                     if (instruction is Mov_Register_Offset mov_Register_Offset)
                     {
                         if (_registerValues.TryGetValue(mov_Register_Offset.Destination, out var registerValue))
@@ -293,9 +351,17 @@ namespace PlatinumC.Optimizer
                             if (registerValue.Equals(mov_Register_Offset.Source)) continue;
                         }
 
+
                         if (_memoryMap.TryGetValue(mov_Register_Offset.Source, out var valueAtMemory))
                         {
-                            if (valueAtMemory.IsImmediate)
+                            // We must ensure that the value at this memory location is not subject to change or this code is unreachable after it does
+                            // The following tests to see if the memory at the offset location is ever assigned to, and 
+                            // if so, tests to see if the code before getting here is reachable after assignment
+                            // if the above conditions are true, we cannot assume a stable immediate value for the memory location to be replaced with
+                            // and therefore are unable to make any optimizations
+                            int? earliestLabel = null;
+                            var isMemoryReferenced = IsLocalAssigned(fn.Instructions, i + 1, mov_Register_Offset.Source, ref earliestLabel) && earliestLabel < i;
+                            if (valueAtMemory.IsImmediate && !isMemoryReferenced)
                             {
                                 optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Register_Offset.Destination, valueAtMemory.ImmediateValue!.Value)));
                                 continue;
@@ -334,7 +400,7 @@ namespace PlatinumC.Optimizer
                                 continue;
                             }
                         }
-                        if (!IsLocalReferenced(fn.Instructions, i, mov_Offset_Register.Destination)) continue;
+                        if (!IsLocalReferenced(fn.Instructions, i + 1, mov_Offset_Register.Destination)) continue;
                     }
                     else if (instruction is Mov_Register_Immediate mov_Register_Immediate)
                     {
@@ -374,6 +440,83 @@ namespace PlatinumC.Optimizer
                     else if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
                     {
                         if (!IsLocalReferenced(fn.Instructions, i + 1, mov_Offset_Immediate.Destination)) continue;
+                    }
+                    else if (instruction is Movsx movsx)
+                    {
+                        // If the register is not referenced after the mov, it can be removed
+                        if (!IsReferenced(fn.Instructions, i + 1, movsx.Destination)) continue;
+                    }
+                    else if (instruction is Movzx movzx)
+                    {
+                        // If the register is not referenced after the mov, it can be removed
+                        if (!IsReferenced(fn.Instructions, i + 1, movzx.Destination)) continue;
+                    }
+                    else if (instruction is Neg neg)
+                    {
+                        // If the memory is not referenced after the negation, it can be removed
+                        if (!IsLocalReferenced(fn.Instructions, i + 1, neg.Operand)) continue;
+
+                        if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_reg_immediate
+                            && add_reg_immediate.Destination == X86Register.esp
+                            && add_reg_immediate.Value == 4
+                            && neg.Operand.Equals(Offset.Create(X86Register.esp, 0, true)))
+                        {
+                            // Test for the following scenario
+                            // not [esp]
+                            // add esp, 4
+                            // optimization:
+                            // ...           (remove unnecessary instruction)
+                            // add esp, 4
+                            continue;
+                        }
+
+                        if (Peek(fn.Instructions, i + 1) is Neg neg_offset)
+                        {
+                            // Test for the following scenario
+                            // not [esp]
+                            // not [esp]
+                            // optimization:
+                            // ...           (remove unnecessary instructions, since they negate each other)
+                            if (neg_offset.Operand.Equals(neg.Operand))
+                            {
+                                i++;
+                                continue;
+                            }
+                        }
+                    }
+                    else if (instruction is Not not)
+                    {
+                        // If the memory is not referenced after the negation, it can be removed
+                        if (!IsLocalReferenced(fn.Instructions, i + 1, not.Operand)) continue;
+
+                        if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_reg_immediate
+                            && add_reg_immediate.Destination == X86Register.esp
+                            && add_reg_immediate.Value == 4
+                            && not.Operand.Equals(Offset.Create(X86Register.esp, 0, true)))
+                        {
+                            // Test for the following scenario
+                            // not [esp]
+                            // add esp, 4
+                            // optimization:
+                            // ...           (remove unnecessary instruction)
+                            // add esp, 4
+                            continue;
+                        }
+
+                        if (Peek(fn.Instructions, i + 1) is Not not_offset)
+                        {
+                            // Test for the following scenario
+                            // not [esp]
+                            // not [esp]
+                            // optimization:
+                            // ...           (remove unnecessary instructions, since they negate each other)
+                            if (not_offset.Operand.Equals(not.Operand))
+                            {
+                                i++;
+                                continue;
+                            }
+                        }
+
                     }
                     else if (instruction is Push push)
                     {
@@ -436,13 +579,16 @@ namespace PlatinumC.Optimizer
                         }
                         if (push.IsIndirect)
                         {
+
+                            // Here we do not need to check if the memory is assigned before replacing, since a register will only match
+                            // if it holds a reference to the memory value and not an immediate value
                             var pushSource = RegisterOffsetOrImmediate.Create(Offset.Create(push.Register, 0, true));
                             var registerWithSameValueIndex = _registerValues.Keys.ToList().FindIndex(key => _registerValues[key].Equals(pushSource));
                             if (registerWithSameValueIndex != -1)
                             {
                                 optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(_registerValues.Keys.ElementAt(registerWithSameValueIndex), false)));
                                 continue;
-                            }        
+                            }
                         }
                     }
                     else if (instruction is Push_Offset push_offset)
@@ -453,6 +599,7 @@ namespace PlatinumC.Optimizer
                             i++;
                             continue;
                         }
+
                         var pushSource = RegisterOffsetOrImmediate.Create(push_offset.Offset);
                         var registerWithSameValueIndex = _registerValues.Keys.ToList().FindIndex(key => _registerValues[key].Equals(pushSource));
                         if (registerWithSameValueIndex != -1)
@@ -461,9 +608,29 @@ namespace PlatinumC.Optimizer
                             continue;
                         }
 
-                        if (_memoryMap.TryGetValue(push_offset.Offset, out var valueAtMemory) && valueAtMemory.IsImmediate)
+
+                        // The following tests to see if the memory at the offset location is ever assigned to, and 
+                        // if so, tests to see if the code before getting here is reachable after assignment
+                        // if the above conditions are true, we cannot assume a stable immediate value for the memory location to be replaced with
+                        // and therefore are unable to make any optimizations
+                        int? earliestLabel = null;
+                        var isMemoryReferenced = IsLocalAssigned(fn.Instructions, i + 1, push_offset.Offset, ref earliestLabel) && earliestLabel < i;
+
+                        if (_memoryMap.TryGetValue(push_offset.Offset, out var valueAtMemory) && valueAtMemory.IsImmediate && !isMemoryReferenced)
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(valueAtMemory.ImmediateValue!.Value)));
+                            continue;
+                        }
+
+                        if (Peek(fn.Instructions, i+1) is Pop_Register pop_register)
+                        {
+                            // Test for following scenario
+                            // push dword [ebp - 16]
+                            // pop eax
+                            // optimization:
+                            // mov eax, dword [ebp - 16]
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_register.Destination, push_offset.Offset)));
+                            i++;
                             continue;
                         }
                     }
@@ -482,13 +649,221 @@ namespace PlatinumC.Optimizer
                             continue;
                         }
                     }
+                    else if (instruction is Add_Register_Immediate add_Register_ImmediateValue)
+                    {
+                        if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_Register_Immediate)
+                        {
+                            // Test for following scenario
+                            // add eax, 4
+                            // add eax, 7
+                            // optimization:
+                            // mov eax, 11
+                            if (add_Register_ImmediateValue.Destination == add_Register_Immediate.Destination)
+                            {
+                                var addedValues = add_Register_ImmediateValue.Value + add_Register_Immediate.Value;
+                                if (addedValues != 0)
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Add(add_Register_ImmediateValue.Destination, addedValues)));
+                                i++;
+                                continue;
+                            }
+                        }
+                        if (Peek(fn.Instructions, i + 1) is Sub sub_Register_Immediate)
+                        {
+                            // Test for following scenario
+                            // add eax, 4
+                            // add eax, 7
+                            // optimization:
+                            // mov eax, 11
+                            if (add_Register_ImmediateValue.Destination == sub_Register_Immediate.Destination)
+                            {
+                                var finalValue = add_Register_ImmediateValue.Value - sub_Register_Immediate.ValueToSubtract;
+                                if (finalValue < 0)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Sub(add_Register_ImmediateValue.Destination, Math.Abs(finalValue))));
+                                }
+                                else if (finalValue > 0)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Add(add_Register_ImmediateValue.Destination, finalValue)));
 
-                   
+                                } // if finalValue == 0, no instructions are necessary
+                                i++;
+                                continue;
+                            }
+                        }
+
+                    }
+                    else if (instruction is Sub sub_Register_ImmediateValue)
+                    {
+                        if (Peek(fn.Instructions, i + 1) is Sub sub)
+                        {
+                            // Test for following scenario
+                            // add eax, 4
+                            // add eax, 7
+                            // optimization:
+                            // mov eax, 11
+                            if (sub_Register_ImmediateValue.Destination == sub.Destination)
+                            {
+                                var subtractedValues = sub_Register_ImmediateValue.ValueToSubtract + sub.ValueToSubtract;
+                                if (subtractedValues != 0)
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Sub(sub_Register_ImmediateValue.Destination, subtractedValues)));
+                                i++;
+                                continue;
+                            }
+                        }
+                        if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add)
+                        {
+                            // Test for following scenario
+                            // add eax, 4
+                            // add eax, 7
+                            // optimization:
+                            // mov eax, 11
+                            if (sub_Register_ImmediateValue.Destination == add.Destination)
+                            {
+                                var finalValue = add.Value - sub_Register_ImmediateValue.ValueToSubtract;
+                                if (finalValue < 0)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Sub(sub_Register_ImmediateValue.Destination, Math.Abs(finalValue))));
+                                }
+                                else if (finalValue > 0)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Add(sub_Register_ImmediateValue.Destination, finalValue)));
+
+                                } // if finalValue == 0, no instructions are necessary
+                                i++;
+                                continue;
+                            }
+                        }
+                    }
+                    else if (instruction is Add_Register_Register add_Register_Register)
+                    {
+                        _registerValues.TryGetValue(add_Register_Register.Destination, out var destinationValue);
+                        _registerValues.TryGetValue(add_Register_Register.Destination, out var sourceValue);
+
+                        if (sourceValue != null && sourceValue.IsImmediate)
+                        {
+                            if (destinationValue != null && destinationValue.IsImmediate)
+                            {
+                                var finalValue = destinationValue.ImmediateValue!.Value + sourceValue.ImmediateValue!.Value;
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(add_Register_Register.Destination, finalValue)));
+                                continue;
+                            }
+                            else
+                            {
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Add(add_Register_Register.Destination, sourceValue.ImmediateValue!.Value)));
+                                continue;
+                            }
+                        }                   
+                    }
+                    else if (instruction is Sub_Register_Register sub_Register_Register)
+                    {
+                        _registerValues.TryGetValue(sub_Register_Register.Destination, out var destinationValue);
+                        _registerValues.TryGetValue(sub_Register_Register.Destination, out var sourceValue);
+
+                        if (sourceValue != null && sourceValue.IsImmediate)
+                        {
+                            if (destinationValue != null && destinationValue.IsImmediate)
+                            {
+                                var finalValue = destinationValue.ImmediateValue!.Value - sourceValue.ImmediateValue!.Value;
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(sub_Register_Register.Destination, finalValue)));
+                                continue;
+                            }
+                            else
+                            {
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Sub(sub_Register_Register.Destination, sourceValue.ImmediateValue!.Value)));
+                                continue;
+                            }
+                        }
+                    }
+                    else if (instruction is Cmp cmp_Register_Register)
+                    {
+                        _registerValues.TryGetValue(cmp_Register_Register.Operand2, out var operand2Value);
+
+                        if (operand2Value != null && operand2Value.IsImmediate)
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Cmp(cmp_Register_Register.Operand1, operand2Value.ImmediateValue!.Value)));
+                            continue;
+                        }
+                    }
+                    else if (instruction is Cmp_Register_Immediate cmp_Register_Immediate)
+                    {
+
+                        if (_registerValues.TryGetValue(cmp_Register_Immediate.Operand1, out var registerValue) && registerValue.IsImmediate)
+                        {
+                            if (Peek(fn.Instructions, i+1) is Jz jz)
+                            {
+                                if (registerValue.ImmediateValue!.Value == cmp_Register_Immediate.Operand2)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Jmp(jz.Label)));
+                                    i++;
+                                    continue;
+                                }
+                                i++;
+                                continue;
+                            }
+                            if (Peek(fn.Instructions, i + 1) is Jnz jnz)
+                            {
+                                if (registerValue.ImmediateValue!.Value != cmp_Register_Immediate.Operand2)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Jmp(jnz.Label)));
+                                    i++;
+                                    continue;
+                                }
+                                i++;
+                                continue;
+                            }
+                            if (Peek(fn.Instructions, i + 1) is JmpGt jmpGt)
+                            {
+                                if (registerValue.ImmediateValue!.Value > cmp_Register_Immediate.Operand2)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Jmp(jmpGt.Label)));
+                                    i++;
+                                    continue;
+                                }
+                                i++;
+                                continue;
+                            }
+                            if (Peek(fn.Instructions, i + 1) is JmpGte jmpGte)
+                            {
+                                if (registerValue.ImmediateValue!.Value >= cmp_Register_Immediate.Operand2)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Jmp(jmpGte.Label)));
+                                    i++;
+                                    continue;
+                                }
+                                i++;
+                                continue;
+                            }
+                            if (Peek(fn.Instructions, i + 1) is JmpLt jmpLt)
+                            {
+                                if (registerValue.ImmediateValue!.Value < cmp_Register_Immediate.Operand2)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Jmp(jmpLt.Label)));
+                                    i++;
+                                    continue;
+                                }
+                                i++;
+                                continue;
+                            }
+                            if (Peek(fn.Instructions, i + 1) is JmpLte jmpLte)
+                            {
+                                if (registerValue.ImmediateValue!.Value <= cmp_Register_Immediate.Operand2)
+                                {
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Jmp(jmpLte.Label)));
+                                    i++;
+                                    continue;
+                                }
+                                i++;
+                                continue;
+                            }
+                        }
+                    }
+
+
+
                     optimizedInstructions.Add(TrackInstruction(instruction));
                 }
 
                 fn.Instructions = optimizedInstructions;
-                _registerValues.Clear();
             }
 
             return compilationResult;
@@ -573,7 +948,7 @@ namespace PlatinumC.Optimizer
                                 // pop ebx
                                 // optimization:
                                 // mov ebx, [eax]
-                                optimizedInstructions.Add(X86Instructions.Mov(pop_register.Destination, Offset.Create(push.Register, 0, true)));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_register.Destination, Offset.Create(push.Register, 0, true))));
                                 registerValues[pop_register.Destination] = RegisterOffsetOrImmediate.Create(Offset.Create(push.Register, 0, true));
                                 i++;
                                 continue;
@@ -585,7 +960,7 @@ namespace PlatinumC.Optimizer
                                 // pop ebx
                                 // optimization:
                                 // mov ebx, eax 
-                                optimizedInstructions.Add(X86Instructions.Mov(pop_register.Destination, push.Register));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_register.Destination, push.Register)));
                                 if (registerValues.TryGetValue(push.Register, out var registerValue)) registerValues[pop_register.Destination] = registerValue;
                                 else registerValues.Remove(pop_register.Destination);
                                 i++;
@@ -619,7 +994,7 @@ namespace PlatinumC.Optimizer
                                 // mov eax, dword [esp]
                                 // optimization:
                                 // push eax
-                                optimizedInstructions.Add(X86Instructions.Push(push.Register, false));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(push.Register, false)));
                                 i++;
                                 continue;
                             }
@@ -632,13 +1007,13 @@ namespace PlatinumC.Optimizer
                     {
                         if (Peek(fn.Instructions, i + 1) is Pop_Register pop_register)
                         {
-                            optimizedInstructions.Add(X86Instructions.Mov(pop_register.Destination, push_immediate.Immediate));
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_register.Destination, push_immediate.Immediate)));
                             registerValues[pop_register.Destination] = RegisterOffsetOrImmediate.Create(push_immediate.Immediate);
                             i++;
                             continue;
                         }
                     }
-                    optimizedInstructions.Add(instruction);
+                    optimizedInstructions.Add(TrackInstruction(instruction));
                 }
 
                 fn.Instructions = optimizedInstructions;
@@ -669,7 +1044,7 @@ namespace PlatinumC.Optimizer
             }
             else if (instruction is Pop_Register pop_register)
             {
-                return false;
+                if (pop_register.Destination == register) return false;
             }
             else if (instruction is Jmp)
             {
@@ -693,6 +1068,36 @@ namespace PlatinumC.Optimizer
             else if (instruction is Label)
             {
 
+            }
+            else if (instruction is Neg neg)
+            {
+                if (neg.Operand.Register == register) return true;
+            }
+            else if (instruction is Not not)
+            {
+                if (not.Operand.Register == register) return true;
+            }
+            else if (instruction is Movsx movsx)
+            {
+                if (register == movsx.Source.ToFullRegister()) return true;
+                if (register == movsx.Destination) return false;
+            }
+            else if (instruction is Movzx movzx)
+            {
+                if (register == movzx.Source.ToFullRegister()) return true;
+                if (register == movzx.Destination) return false;
+            }
+            else if (instruction is Mov_Register_Immediate__Byte mov_Register_Immediate__Byte)
+            {
+                if (mov_Register_Immediate__Byte.Destination.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+                if (mov_Offset_Register__Byte.Destination.Register == register || mov_Offset_Register__Byte.Source.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Mov_Register_Offset__Byte mov_Register_Offset__Byte)
+            {
+                if (mov_Register_Offset__Byte.Destination.ToFullRegister() == register || mov_Register_Offset__Byte.Source.Register == register) return true;
             }
             else if (instruction is Lea lea)
             {
@@ -718,6 +1123,26 @@ namespace PlatinumC.Optimizer
             else if (instruction is Sub_Register_Register sub_Register_Register)
             {
                 if (sub_Register_Register.Destination == register || sub_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Cmp cmp)
+            {
+                if (cmp.Operand1 == register || cmp.Operand2 == register) return true;
+            }
+            else if (instruction is Cmp_Byte_Byte cmp_byte_byte)
+            {
+                if (cmp_byte_byte.Operand1.ToFullRegister() == register || cmp_byte_byte.Operand2.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Cmp_Register_Immediate cmp_Register_Immediate)
+            {
+                if (cmp_Register_Immediate.Operand1 == register) return true;
+            }
+            else if (instruction is Test test)
+            {
+                if (test.Operand1 == register || test.Operand2 == register) return true;
+            }
+            else if (instruction is Test_Offset test_offset)
+            {
+                if (test_offset.Operand1 == register || test_offset.Operand2.Register == register) return true;
             }
             else if (instruction is IDiv idiv)
             {
@@ -762,6 +1187,30 @@ namespace PlatinumC.Optimizer
             {
                 if (mov_Register_Register.Source == register) return true;
                 if (mov_Register_Register.Destination == register) return false;
+            }
+            else if (instruction is And_Register_Register and_Register_Register)
+            {
+                if (and_Register_Register.Destination == register || and_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Or_Register_Register or_Register_Register)
+            {
+                if (or_Register_Register.Destination == register || or_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Xor_Register_Register xor_Register_Register)
+            {
+                if (xor_Register_Register.Destination == register || xor_Register_Register.Source == register) return true;
+            }
+            else if (instruction is And_Register_Register__Byte and_Register_Register__Byte)
+            {
+                if (and_Register_Register__Byte.Destination.ToFullRegister() == register || and_Register_Register__Byte.Source.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Or_Register_Register__Byte or_Register_Register__Byte)
+            {
+                if (or_Register_Register__Byte.Destination.ToFullRegister() == register || or_Register_Register__Byte.Source.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Xor_Register_Register__Byte xor_Register_Register__Byte)
+            {
+                if (xor_Register_Register__Byte.Destination.ToFullRegister() == register || xor_Register_Register__Byte.Source.ToFullRegister() == register) return true;
             }
 
             return IsReferenced(instructions, index + 1, register);
@@ -857,13 +1306,138 @@ namespace PlatinumC.Optimizer
             {
                 if (mov_Register_Offset.Source.Equals(registerOffset)) return true;
             }
+            else if (instruction is Neg neg)
+            {
+                if (neg.Operand.Equals(registerOffset)) return true;
+            }
+            else if (instruction is Not not)
+            {
+                if (not.Operand.Equals(registerOffset)) return true;
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+                if (mov_Offset_Register__Byte.Destination.Equals(registerOffset)) return true;
+            }
+            else if (instruction is Mov_Register_Offset__Byte mov_Register_Offset__Byte)
+            {
+                if (mov_Register_Offset__Byte.Source.Equals(registerOffset)) return true;
+            }
             else if (instruction is Lea lea)
             {
                 if (lea.Source.Equals(registerOffset)) return true;
+            }
+            else if (instruction is Test_Offset test_offset)
+            {
+                if (test_offset.Operand2.Equals(registerOffset)) return true;
             }
 
             return IsLocalReferenced(instructions, index + 1, registerOffset, endIndex, exploredLabels);
         }
 
+
+        private bool IsLocalAssigned(List<X86Instruction> instructions, int index, RegisterOffset registerOffset, ref int? earliestReachableLabel, int? endIndex = null, HashSet<string>? exploredLabels = null, bool isAssignedTo = false)
+        {
+            // This function assumes no arithmetic or other manipulation is done to ebp 
+            // and ebp is only ever used for local variable addressing
+            // this also ignores function preludes, etc
+            // ie mov esp, ebp
+            //    pop ebp
+            if (earliestReachableLabel == null) earliestReachableLabel = index;
+            if (index < earliestReachableLabel) earliestReachableLabel = index;
+            if (registerOffset.Register != X86Register.ebp) return true; // exclude non-local variable operations
+            if (endIndex == null) endIndex = instructions.Count;
+            if (exploredLabels == null) exploredLabels = new();
+            if (index >= endIndex) return isAssignedTo;
+            var instruction = instructions[index];
+
+            if (instruction is Label label)
+            {
+                if (exploredLabels.Contains(label.Text)) return isAssignedTo;
+                exploredLabels.Add(label.Text);
+            }
+            else if (instruction is Jmp jump && jump.Emit().StartsWith("jmp"))
+            {
+                // if it is not a conditional jump
+                if (exploredLabels.Contains(jump.Label)) return isAssignedTo;
+                var labelIndex = instructions.FindIndex(x => x is Label label && label.Text == jump.Label);
+                if (labelIndex != -1)
+                {
+                    if (labelIndex < index)
+                    {
+                        // we are jumping backwards
+                        return IsLocalAssigned(instructions, labelIndex, registerOffset, ref earliestReachableLabel, index, exploredLabels, isAssignedTo);
+                    }
+                    else return IsLocalAssigned(instructions, labelIndex, registerOffset, ref earliestReachableLabel, instructions.Count, exploredLabels, isAssignedTo);
+                }
+                else return true;
+            }
+            else if (instruction is Jmp jmp && !exploredLabels.Contains(jmp.Label))
+            {
+                // the following allows for this check to occur from the middle of a function instead of just the beginning
+                var labelIndex = instructions.FindIndex(x => x is Label label && label.Text == jmp.Label);
+                if (labelIndex != -1)
+                {
+                    if (labelIndex < index)
+                    {
+                        // we are jumping backwards
+                        if (IsLocalAssigned(instructions, labelIndex, registerOffset, ref earliestReachableLabel, index, exploredLabels, isAssignedTo)) return true;
+                    }
+                    else
+                    {
+                        endIndex = labelIndex;
+                        // we are jumping forwards
+                        if (IsLocalAssigned(instructions, labelIndex, registerOffset, ref earliestReachableLabel, instructions.Count, exploredLabels, isAssignedTo)) return true;
+                    }
+                }
+                else
+                {
+                    // If we cannot find the label, to be safe, we must assume the local is referenced
+                    return true;
+                }
+            }
+            else if (instruction is Ret ret || instruction is Ret_Immediate ret_Immediate)
+            {
+                return isAssignedTo;
+            }
+            else if (instruction is Pop_Register pop_register)
+            {
+                // nothing is done here, see above note: pop ebp is ignored
+            }
+            else if (instruction is Mov_Offset_Register mov_offset_register)
+            {
+                if (mov_offset_register.Destination.Equals(registerOffset)) isAssignedTo = true;
+            }
+            else if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
+            {
+                if (mov_Offset_Immediate.Destination.Equals(registerOffset)) isAssignedTo = true;
+            }
+            else if (instruction is Fstp fstp)
+            {
+                if (fstp.Destination.Equals(registerOffset)) isAssignedTo = true;
+            }
+            else if (instruction is Neg neg)
+            {
+                if (neg.Operand.Equals(registerOffset)) isAssignedTo = true;
+            }
+            else if (instruction is Not not)
+            {
+                if (not.Operand.Equals(registerOffset)) isAssignedTo = true;
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+                if (mov_Offset_Register__Byte.Destination.Equals(registerOffset)) isAssignedTo = true;
+            }
+            
+            else if (instruction is Lea lea)
+            {
+                // must assume address calculated will later be used for assignment
+                // too hard to track otherwise
+                if (lea.Source.Equals(registerOffset)) isAssignedTo = true;
+            }
+
+            return IsLocalAssigned(instructions, index + 1, registerOffset, ref earliestReachableLabel, endIndex, exploredLabels, isAssignedTo);
+        }
+
+        
     }
 }

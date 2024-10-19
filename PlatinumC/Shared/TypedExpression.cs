@@ -1095,4 +1095,94 @@ namespace PlatinumC.Shared
 
     #endregion
 
+
+    #region UnaryOperators
+
+    public class TypedUnary_Negation_Integer: TypedExpression
+    {
+        public TypedExpression Rhs { get; set; }
+        public TypedUnary_Negation_Integer(Expression originalExpression, ResolvedType resolvedType, TypedExpression rhs)
+            : base(originalExpression, resolvedType)
+        {
+            Rhs = rhs;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            //  result: | A |
+            // sp----->
+            // subtracts A from 0 and modifies it in place on the stack
+
+            base.Visit(context);
+            Rhs.Visit(context);
+            context.AddInstruction(X86Instructions.Neg(Offset.Create(X86Register.esp, 0, true)));
+        }
+    }
+
+    public class TypedUnary_Negation_Byte : TypedExpression
+    {
+        public TypedExpression Rhs { get; set; }
+        public TypedUnary_Negation_Byte(Expression originalExpression, ResolvedType resolvedType, TypedExpression rhs)
+            : base(originalExpression, resolvedType)
+        {
+            Rhs = rhs;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            //  result: | A |
+            // sp----->
+            // subtracts A from 0 and modifies it in place on the stack
+
+            base.Visit(context);
+            Rhs.Visit(context);
+            context.AddInstruction(X86Instructions.Neg(Offset.Create(X86Register.esp, 0, true)));
+        }
+    }
+
+
+    public class TypedUnary_Not_Integer : TypedExpression
+    {
+        public TypedExpression Rhs { get; set; }
+        public TypedUnary_Not_Integer(Expression originalExpression, ResolvedType resolvedType, TypedExpression rhs)
+            : base(originalExpression, resolvedType)
+        {
+            Rhs = rhs;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            //  result: | A |
+            // sp----->
+            // performs bitwise negation on A, modifies it in place on the stack
+
+            base.Visit(context);
+            Rhs.Visit(context);
+            context.AddInstruction(X86Instructions.Not(Offset.Create(X86Register.esp, 0, true)));
+        }
+    }
+
+    public class TypedUnary_Not_Byte : TypedExpression
+    {
+        public TypedExpression Rhs { get; set; }
+        public TypedUnary_Not_Byte(Expression originalExpression, ResolvedType resolvedType, TypedExpression rhs)
+            : base(originalExpression, resolvedType)
+        {
+            Rhs = rhs;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            //  result: | A |
+            // sp----->
+            // performs bitwise negation on A, modifies it in place on the stack
+
+            base.Visit(context);
+            Rhs.Visit(context);
+            context.AddInstruction(X86Instructions.Not(Offset.Create(X86Register.esp, 0, true)));
+        }
+    }
+
+
+    #endregion
 }
