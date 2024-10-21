@@ -111,10 +111,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.FAddp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+            context.AddInstruction(X86Instructions.Addss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
         }
     }
 
@@ -211,10 +211,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.FSubp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+            context.AddInstruction(X86Instructions.Subss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
         }
     }
 
@@ -271,10 +271,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.FMulp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+            context.AddInstruction(X86Instructions.Mulss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
         }
     }
 
@@ -332,10 +332,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.FDivp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+            context.AddInstruction(X86Instructions.Divss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
         }
     }
 
@@ -452,7 +452,7 @@ namespace PlatinumC.Shared
             //          | B | esp + 4
             // sp-----> | A | esp + 0
             // 
-            // Pops A and B from the stack, loads them into FPU register and compares B to A
+            // Pops A and B from the stack, loads them into xmm0 and xmm1 register and compares B to A
 
             base.Visit(context);
             Lhs.Visit(context);
@@ -461,24 +461,12 @@ namespace PlatinumC.Shared
             var ifLabel = context.CreateLabel();
             var endLabel = context.CreateLabel();
 
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0, true)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
-            context.AddInstruction(X86Instructions.FComip());
-            context.AddInstruction(X86Instructions.Fstp(X87Register.st0));
 
-            //  FCOMI instruction does not set sign or overflow flags, so jumps must be made a bit differently
-            //     +--------------+---+---+-----+------------------------------------+
-            //     | Test         | Z | C | Jcc | Notes                              |
-            //     +--------------+---+---+-----+------------------------------------+
-            //     | ST0 < ST(i)  | X | 1 | JB  | ZF will never be set when CF = 1   |
-            //     | ST0 <= ST(i) | 1 | 1 | JBE | Either ZF or CF is ok              |
-            //     | ST0 == ST(i) | 1 | X | JE  | CF will never be set in this case  |
-            //     | ST0 != ST(i) | 0 | X | JNE |                                    |
-            //     | ST0 >= ST(i) | X | 0 | JAE | As long as CF is clear we are good |
-            //     | ST0 > ST(i)  | 0 | 0 | JA  | Both CF and ZF must be clear       |
-            //     +--------------+---+---+-----+------------------------------------+
-            //     Legend: X: don't care, 0: clear, 1: set
+            if (ComparisonType == ComparisonType.Equal || ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Ucomiss(XmmRegister.xmm0, XmmRegister.xmm1));
+            else context.AddInstruction(X86Instructions.Comiss(XmmRegister.xmm0, XmmRegister.xmm1));
 
 
             if (ComparisonType == ComparisonType.Equal) context.AddInstruction(X86Instructions.JmpEq(ifLabel));
@@ -960,7 +948,8 @@ namespace PlatinumC.Shared
 
         public override void Visit(X86CompilationContext context)
         {
-            context.AddInstruction(X86Instructions.Push(Value));
+            var label = context.AddSinglePrecisionFloatingPointData(Value);
+            context.AddInstruction(X86Instructions.Push(label, true));
         }
     }
 
@@ -1054,8 +1043,8 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Fild(Offset.Create(X86Register.esp, 0, true)));
-            context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Cvtsi2ss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
         }
     }
 
@@ -1072,8 +1061,8 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0, true)));
-            context.AddInstruction(X86Instructions.Fistp(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Cvtss2si(X86Register.eax, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.esp, 0, true), X86Register.eax));
         }
     }
 

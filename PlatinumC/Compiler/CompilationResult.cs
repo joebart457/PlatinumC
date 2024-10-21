@@ -15,7 +15,7 @@ namespace PlatinumC.Compiler
         public List<ImportLibrary> ImportLibraries { get; private set; } 
         public List<(string functionIdentifier, string exportedSymbol)> ExportedFunctions { get; private set; }
         public List<StringData> StaticStringData { get; private set; }
-
+        public List<SinglePrecisionFloatingPointData> StaticFloatingPointData { get; private set; }
         public CompilationResult(X86CompilationContext context)
         {
             CompilationOptions = context.CompilationOptions;
@@ -23,6 +23,7 @@ namespace PlatinumC.Compiler
             ImportLibraries = context.ImportLibraries;
             ExportedFunctions = context.ExportedFunctions;
             StaticStringData = context.StaticStringData;
+            StaticFloatingPointData = context.StaticFloatingPointData;
         }
     }
 }

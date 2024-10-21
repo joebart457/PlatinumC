@@ -81,135 +81,204 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class FAddp : X86Instruction
+    public class FAdd : X86Instruction
     {
         public RegisterOffset Source { get; set; }
 
-        public FAddp(RegisterOffset source)
+        public FAdd(RegisterOffset source)
         {
             Source = source;
         }
 
         public override string Emit()
         {
-            return $"faddp {Source}";
+            return $"fadd {Source}";
+        }
+    }
+
+    public class FiAdd : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FiAdd(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fiadd {Source}";
+        }
+    }
+
+    public class FSub : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FSub(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fsub {Source}";
+        }
+    }
+
+    public class FiSub : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FiSub(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fisub {Source}";
+        }
+    }
+
+    public class FMul : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FMul(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fmul {Source}";
+        }
+    }
+
+    public class FiMul : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FiMul(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fimul {Source}";
+        }
+    }
+
+    public class FDiv : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FDiv(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fdiv {Source}";
+        }
+    }
+    public class FiDiv : X86Instruction
+    {
+        public RegisterOffset Source { get; set; }
+
+        public FiDiv(RegisterOffset source)
+        {
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"fidiv {Source}";
+        }
+    }
+
+    public class FAddp : X86Instruction
+    {
+
+        public override string Emit()
+        {
+            return $"faddp";
         }
     }
 
     public class FiAddp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FiAddp(RegisterOffset source)
-        {
-            Source = source;
-        }
-
         public override string Emit()
         {
-            return $"fiaddp {Source}";
+            return $"fiaddp";
         }
     }
 
     public class FSubp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FSubp(RegisterOffset source)
-        {
-            Source = source;
-        }
 
         public override string Emit()
         {
-            return $"fsubp {Source}";
+            return $"fsubp";
         }
     }
 
     public class FiSubp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FiSubp(RegisterOffset source)
-        {
-            Source = source;
-        }
 
         public override string Emit()
         {
-            return $"fisubp {Source}";
+            return $"fisubp";
         }
     }
 
     public class FMulp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FMulp(RegisterOffset source)
-        {
-            Source = source;
-        }
-
         public override string Emit()
         {
-            return $"fmulp {Source}";
+            return $"fmulp";
         }
     }
 
     public class FiMulp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FiMulp(RegisterOffset source)
-        {
-            Source = source;
-        }
 
         public override string Emit()
         {
-            return $"fimulp {Source}";
+            return $"fimulp";
         }
     }
 
     public class FDivp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FDivp(RegisterOffset source)
-        {
-            Source = source;
-        }
 
         public override string Emit()
         {
-            return $"fdivp {Source}";
+            return $"fdivp";
         }
     }
     public class FiDivp : X86Instruction
     {
-        public RegisterOffset Source { get; set; }
-
-        public FiDivp(RegisterOffset source)
-        {
-            Source = source;
-        }
-
         public override string Emit()
         {
-            return $"fidivp {Source}";
+            return $"fidivp";
         }
     }
 
     public class FComip : X86Instruction
     {
-
-        public FComip()
+        public X87Register Operand { get; set; }
+        public FComip(X87Register operand)
         {
+            Operand = operand;
         }
 
         public override string Emit()
         {
-            return $"fcomip";
+            return $"fcomip {Operand}";
         }
     }
 

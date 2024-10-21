@@ -103,25 +103,11 @@ namespace PlatinumC.Shared
             {
                 comparison_Float_Float.Lhs.Visit(context);
                 comparison_Float_Float.Rhs.Visit(context);
-                context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-                context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0, true)));
                 context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
-                context.AddInstruction(X86Instructions.FComip());
-                context.AddInstruction(X86Instructions.Fstp(X87Register.st0));
-   
-                //  FCOMI instruction does not set sign or overflow flags, so jumps must be made a bit differently
-                //     +--------------+---+---+-----+------------------------------------+
-                //     | Test         | Z | C | Jcc | Notes                              |
-                //     +--------------+---+---+-----+------------------------------------+
-                //     | ST0 < ST(i)  | X | 1 | JB  | ZF will never be set when CF = 1   |
-                //     | ST0 <= ST(i) | 1 | 1 | JBE | Either ZF or CF is ok              |
-                //     | ST0 == ST(i) | 1 | X | JE  | CF will never be set in this case  |
-                //     | ST0 != ST(i) | 0 | X | JNE |                                    |
-                //     | ST0 >= ST(i) | X | 0 | JAE | As long as CF is clear we are good |
-                //     | ST0 > ST(i)  | 0 | 0 | JA  | Both CF and ZF must be clear       |
-                //     +--------------+---+---+-----+------------------------------------+
-                //     Legend: X: don't care, 0: clear, 1: set
-     
+                if (comparison_Float_Float.ComparisonType == ComparisonType.Equal || comparison_Float_Float.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Ucomiss(XmmRegister.xmm0, XmmRegister.xmm1));
+                else context.AddInstruction(X86Instructions.Comiss(XmmRegister.xmm0, XmmRegister.xmm1));
 
                 if (comparison_Float_Float.ComparisonType == ComparisonType.Equal) context.AddInstruction(X86Instructions.JmpEq(ifLabel));
                 if (comparison_Float_Float.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.JmpNeq(ifLabel));
@@ -208,25 +194,12 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Label(startLabel));
                 comparison_Float_Float.Lhs.Visit(context);
                 comparison_Float_Float.Rhs.Visit(context);
-                context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 4, true)));
-                context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0, true)));
                 context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
-                context.AddInstruction(X86Instructions.FComip());
-                context.AddInstruction(X86Instructions.Fstp(X87Register.st0));
-
-                //  FCOMI instruction does not set sign or overflow flags, so jumps must be made a bit differently
-                //     +--------------+---+---+-----+------------------------------------+
-                //     | Test         | Z | C | Jcc | Notes                              |
-                //     +--------------+---+---+-----+------------------------------------+
-                //     | ST0 < ST(i)  | X | 1 | JB  | ZF will never be set when CF = 1   |
-                //     | ST0 <= ST(i) | 1 | 1 | JBE | Either ZF or CF is ok              |
-                //     | ST0 == ST(i) | 1 | X | JE  | CF will never be set in this case  |
-                //     | ST0 != ST(i) | 0 | X | JNE |                                    |
-                //     | ST0 >= ST(i) | X | 0 | JAE | As long as CF is clear we are good |
-                //     | ST0 > ST(i)  | 0 | 0 | JA  | Both CF and ZF must be clear       |
-                //     +--------------+---+---+-----+------------------------------------+
-                //     Legend: X: don't care, 0: clear, 1: set
-
+                
+                if (comparison_Float_Float.ComparisonType == ComparisonType.Equal || comparison_Float_Float.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Ucomiss(XmmRegister.xmm0, XmmRegister.xmm1));
+                else context.AddInstruction(X86Instructions.Comiss(XmmRegister.xmm0, XmmRegister.xmm1));
 
                 if (comparison_Float_Float.ComparisonType == ComparisonType.Equal) context.AddInstruction(X86Instructions.JmpEq(bodyLabel));
                 if (comparison_Float_Float.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.JmpNeq(bodyLabel));

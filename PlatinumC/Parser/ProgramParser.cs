@@ -367,7 +367,7 @@ namespace PlatinumC.Parser
         public Expression ParseUnary()
         {
             Expression? expression = null;
-            while(Match(TokenTypes.Asterisk) || Match(TokenTypes.Ampersand) || Match(TokenTypes.Not) || Match(TokenTypes.BitwiseNot))
+            while(Match(TokenTypes.Asterisk) || Match(TokenTypes.Ampersand) || Match(TokenTypes.Not) || Match(TokenTypes.BitwiseNot) || (Match(TokenTypes.LParen) && PeekMatch(1, TokenTypes.SupportedType)))
             {
                 if (AdvanceIfMatch(TokenTypes.Asterisk))
                 {
@@ -391,6 +391,13 @@ namespace PlatinumC.Parser
                     var token = Previous();
                     var expresion = ParseCall();
                     expression = new UnaryNegation(token, expresion);
+                }
+                else if (Match(TokenTypes.LParen) && PeekMatch(1, TokenTypes.SupportedType))
+                {
+                    var token = Consume(TokenTypes.LParen, "expect type cast");
+                    var typeSymbol = ParseTypeSymbol();
+                    Consume(TokenTypes.RParen, "expect enclosing ) in type cast");
+                    expression = new Cast(token, typeSymbol, ParseCall());
                 }
                 else throw new ParsingException(Current(), $"unable to determine unary operation");
             }

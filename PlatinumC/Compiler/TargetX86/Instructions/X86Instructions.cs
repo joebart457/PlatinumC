@@ -93,15 +93,36 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Fld Fld(RegisterOffset source) => new Fld(source);
         public static Fild Fild(RegisterOffset source) => new Fild(source);
         public static Fistp Fistp(RegisterOffset source) => new Fistp(source);
-        public static FAddp FAddp(RegisterOffset source) => new FAddp(source);
-        public static FiAddp FiAddp(RegisterOffset source) => new FiAddp(source);
-        public static FSubp FSubp(RegisterOffset source) => new FSubp(source);
-        public static FiSubp FiSubp(RegisterOffset source) => new FiSubp(source);
-        public static FMulp FMulp(RegisterOffset source) => new FMulp(source);
-        public static FiMulp FiMulp(RegisterOffset source) => new FiMulp(source);
-        public static FDivp FDivp(RegisterOffset source) => new FDivp(source);
-        public static FiDivp FiDivp(RegisterOffset source) => new FiDivp(source);
-        public static FComip FComip() => new FComip();
+        public static FAdd FAdd(RegisterOffset source) => new FAdd(source);
+        public static FiAdd FiAdd(RegisterOffset source) => new FiAdd(source);
+        public static FSub FSub(RegisterOffset source) => new FSub(source);
+        public static FiSub FiSub(RegisterOffset source) => new FiSub(source);
+        public static FMul FMul(RegisterOffset source) => new FMul(source);
+        public static FiMul FiMul(RegisterOffset source) => new FiMul(source);
+        public static FDiv FDiv(RegisterOffset source) => new FDiv(source);
+        public static FiDiv FiDiv(RegisterOffset source) => new FiDiv(source);
+        public static FAddp FAddp() => new FAddp();
+        public static FiAddp FiAddp() => new FiAddp();
+        public static FSubp FSubp() => new FSubp();
+        public static FiSubp FiSubp() => new FiSubp();
+        public static FMulp FMulp() => new FMulp();
+        public static FiMulp FiMulp() => new FiMulp();
+        public static FDivp FDivp() => new FDivp();
+        public static FiDivp FiDivp() => new FiDivp();
+        public static FComip FComip() => new FComip(X87Register.st1);
 
+
+
+        public static Movss_Offset_Register Movss(RegisterOffset destination, XmmRegister source) => new Movss_Offset_Register(destination, source);
+        public static Movss_Register_Offset Movss(XmmRegister destination, RegisterOffset source) => new Movss_Register_Offset(destination, source);
+        public static Comiss_Register_Offset Comiss(XmmRegister destination, RegisterOffset source) => new Comiss_Register_Offset(destination, source);
+        public static Comiss_Register_Register Comiss(XmmRegister destination, XmmRegister source) => new Comiss_Register_Register(destination, source);
+        public static Ucomiss_Register_Register Ucomiss(XmmRegister destination, XmmRegister source) => new Ucomiss_Register_Register(destination, source);
+        public static Addss_Register_Offset Addss(XmmRegister destination, RegisterOffset source) => new Addss_Register_Offset(destination, source);
+        public static Subss_Register_Offset Subss(XmmRegister destination, RegisterOffset source) => new Subss_Register_Offset(destination, source);
+        public static Mulss_Register_Offset Mulss(XmmRegister destination, RegisterOffset source) => new Mulss_Register_Offset(destination, source);
+        public static Divss_Register_Offset Divss(XmmRegister destination, RegisterOffset source) => new Divss_Register_Offset(destination, source);
+        public static Cvtsi2ss_Register_Offset Cvtsi2ss(XmmRegister destination, RegisterOffset source) => new Cvtsi2ss_Register_Offset(destination, source);
+        public static Cvtss2si_Register_Offset Cvtss2si(X86Register destination, RegisterOffset source) => new Cvtss2si_Register_Offset(destination, source);
     }
 }

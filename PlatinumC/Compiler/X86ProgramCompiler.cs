@@ -67,6 +67,29 @@ namespace PlatinumC.Compiler
                 return $"0x{strBytes.Replace("-", ",0x")}";
             }
         }
+
+        public class SinglePrecisionFloatingPointData
+        {
+            public string Label { get; set; }
+            public float Value { get; set; }
+            public SinglePrecisionFloatingPointData(string label, float value)
+            {
+                Label = label;
+                Value = value;
+            }
+
+            public string Emit(int indentLevel)
+            {
+                return $"{Label} db {ToBytes(Value)} ;    {Value}".Indent(indentLevel);
+            }
+
+            private static string ToBytes(float value)
+            {
+                var bytes = BitConverter.GetBytes(value);
+                var strBytes = BitConverter.ToString(bytes);
+                return $"0x{strBytes.Replace("-", ",0x")}";
+            }
+        }
         public CompilationOptions CompilationOptions { get; private set; }
 
         public X86CompilationContext(CompilationOptions compilationOptions)
@@ -76,12 +99,15 @@ namespace PlatinumC.Compiler
 
         private X86Function? _currentFunctionTarget;
         private int _stringUniqueIndex = 0;
+        private int _floatUniqueIndex = 0;
 
         private int _loopUniqueIndex = 0;
 
         private Stack<(string continueLabel, string breakLabel)> _loopLabels = new Stack<(string continueLabel, string breakLabel)>();
         private List<StringData> _stringData = new();
+        private List<SinglePrecisionFloatingPointData> _floatingPointData = new();
         public List<StringData> StaticStringData => _stringData;
+        public List<SinglePrecisionFloatingPointData> StaticFloatingPointData => _floatingPointData;
         public int SizeOfPtr => 4;
 
         public List<X86Function> FunctionData { get; private set; } = new();
@@ -115,6 +141,13 @@ namespace PlatinumC.Compiler
             return label;
         }
 
+        public string AddSinglePrecisionFloatingPointData(float value)
+        {
+            var label = CreateUniqueFloatingPointLabel();
+            _floatingPointData.Add(new(label, value));
+            return label;
+        }
+
         public RegisterOffset GetIdentifierOffset(IToken identifier)
         {
             var foundParameterIndex = CurrentFunction.Parameters.FindIndex(x => x.ParameterName.Lexeme == identifier.Lexeme);
@@ -143,6 +176,11 @@ namespace PlatinumC.Compiler
         private string CreateUniqueStringLabel()
         {
             return $"!str_{_stringUniqueIndex++}";
+        }
+
+        private string CreateUniqueFloatingPointLabel()
+        {
+            return $"!flt_{_floatUniqueIndex++}";
         }
 
         private string CreateLoopLabel()
