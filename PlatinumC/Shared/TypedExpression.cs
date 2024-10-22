@@ -48,7 +48,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.Add(X86Register.ebx, X86Register.eax));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -76,7 +76,7 @@ namespace PlatinumC.Shared
             {
                 context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
                 context.AddInstruction(X86Instructions.Add(X86Register.ebx, integerLiteral.Value * Lhs.ResolvedType.ReferencedTypeSize));
-                context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             } else
             {
                 Rhs.Visit(context);
@@ -84,7 +84,7 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.IMul(X86Register.eax, Lhs.ResolvedType.ReferencedTypeSize));
                 context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
                 context.AddInstruction(X86Instructions.Add(X86Register.ebx, X86Register.eax));
-                context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             }
         }
     }
@@ -111,10 +111,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.Addss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+            context.AddInstruction(X86Instructions.Addss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0), XmmRegister.xmm0));
         }
     }
 
@@ -146,7 +146,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.Sub(X86Register.ebx, X86Register.eax));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -175,7 +175,7 @@ namespace PlatinumC.Shared
             {             
                 context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
                 context.AddInstruction(X86Instructions.Sub(X86Register.ebx, integerLiteral.Value * Lhs.ResolvedType.ReferencedTypeSize));
-                context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             }
             else
             {
@@ -184,7 +184,7 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.IMul(X86Register.eax, Lhs.ResolvedType.ReferencedTypeSize));
                 context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
                 context.AddInstruction(X86Instructions.Sub(X86Register.ebx, X86Register.eax));
-                context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             }
             
         }
@@ -211,10 +211,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.Subss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+            context.AddInstruction(X86Instructions.Subss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0), XmmRegister.xmm0));
         }
     }
 
@@ -246,7 +246,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.IMul(X86Register.ebx, X86Register.eax));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -271,10 +271,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.Mulss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+            context.AddInstruction(X86Instructions.Mulss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0), XmmRegister.xmm0));
         }
     }
 
@@ -303,11 +303,11 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 4, true)));
+            context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 4)));
             context.AddInstruction(X86Instructions.Cdq());
-            context.AddInstruction(X86Instructions.IDiv(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.IDiv(Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.esp, 0, true), X86Register.eax));
+            context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.esp, 0), X86Register.eax));
         }
     }
 
@@ -332,10 +332,10 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Lhs.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.Divss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+            context.AddInstruction(X86Instructions.Divss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
-            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0), XmmRegister.xmm0));
         }
     }
 
@@ -461,8 +461,8 @@ namespace PlatinumC.Shared
             var ifLabel = context.CreateLabel();
             var endLabel = context.CreateLabel();
 
-            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+            context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
 
             if (ComparisonType == ComparisonType.Equal || ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Ucomiss(XmmRegister.xmm0, XmmRegister.xmm1));
@@ -511,7 +511,7 @@ namespace PlatinumC.Shared
             base.Visit(context);
             var endLabel = context.CreateLabel();
             Lhs.Visit(context);
-            context.AddInstruction(X86Instructions.Test(X86Register.eax, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Test(X86Register.eax, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Jz(endLabel));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
             Rhs.Visit(context);
@@ -539,7 +539,7 @@ namespace PlatinumC.Shared
             base.Visit(context);
             var endLabel = context.CreateLabel();
             Lhs.Visit(context);
-            context.AddInstruction(X86Instructions.Test(X86Register.eax, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Test(X86Register.eax, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Jnz(endLabel));
             context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
             Rhs.Visit(context);
@@ -576,7 +576,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.And(X86Register.ebx, X86Register.eax));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -604,7 +604,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.Or(X86Register.ebx, X86Register.eax));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -632,7 +632,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.Xor(X86Register.ebx, X86Register.eax));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -659,8 +659,8 @@ namespace PlatinumC.Shared
             Rhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            context.AddInstruction(X86Instructions.And(X86ByteRegister.bl, X86ByteRegister.al));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.And(X86Register.ebx, X86Register.eax));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -687,8 +687,8 @@ namespace PlatinumC.Shared
             Rhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            context.AddInstruction(X86Instructions.Or(X86ByteRegister.bl, X86ByteRegister.al));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Or(X86Register.ebx, X86Register.eax));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -715,8 +715,8 @@ namespace PlatinumC.Shared
             Rhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            context.AddInstruction(X86Instructions.Xor(X86ByteRegister.bl, X86ByteRegister.al));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            context.AddInstruction(X86Instructions.Xor(X86Register.ebx, X86Register.eax));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -747,9 +747,9 @@ namespace PlatinumC.Shared
             if (Function.ReturnType.Is(SupportedType.Float))
             {
                 context.AddInstruction(X86Instructions.Sub(X86Register.esp, 4));
-                context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0)));
             }
-            else if (!Function.ReturnType.Is(SupportedType.Void)) context.AddInstruction(X86Instructions.Push(X86Register.eax, false));
+            else if (!Function.ReturnType.Is(SupportedType.Void)) context.AddInstruction(X86Instructions.Push(X86Register.eax));
         }
     }
 
@@ -776,9 +776,9 @@ namespace PlatinumC.Shared
             if (Function.ReturnType.Is(SupportedType.Float))
             {
                 context.AddInstruction(X86Instructions.Sub(X86Register.esp, 4));
-                context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Fstp(Offset.Create(X86Register.esp, 0)));
             }
-            else if (!Function.ReturnType.Is(SupportedType.Void)) context.AddInstruction(X86Instructions.Push(X86Register.eax, false));
+            else if (!Function.ReturnType.Is(SupportedType.Void)) context.AddInstruction(X86Instructions.Push(X86Register.eax));
         }
     }
 
@@ -798,7 +798,7 @@ namespace PlatinumC.Shared
             var offset = context.GetIdentifierOffset(AssignmentTarget);
             ValueToAssign.Visit(context);
             // leave value on the stack instead of popping, then re-pushing
-            context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0)));
             context.AddInstruction(X86Instructions.Mov(offset, X86Register.eax));
         }
     }
@@ -820,9 +820,9 @@ namespace PlatinumC.Shared
             AssignmentTarget.Rhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0, true), X86ByteRegister.bl));
-            else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0, true), X86Register.ebx));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0), X86ByteRegister.bl));
+            else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0), X86Register.ebx));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
 
         }
     }
@@ -848,8 +848,8 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             if (ResolvedType.Is(SupportedType.Byte))
-                context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, offset, true), X86ByteRegister.bl));
-            else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, offset, true), X86Register.ebx));
+                context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, offset), X86ByteRegister.bl));
+            else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, offset), X86Register.ebx));
         }
     }
 
@@ -883,7 +883,7 @@ namespace PlatinumC.Shared
             base.Visit(context);
             var offset = context.GetIdentifierOffset(Identifier);
             context.AddInstruction(X86Instructions.Lea(X86Register.eax, offset));
-            context.AddInstruction(X86Instructions.Push(X86Register.eax, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.eax));
         }
     }
 
@@ -900,9 +900,9 @@ namespace PlatinumC.Shared
             base.Visit(context);
             Rhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
-            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Mov(X86ByteRegister.bl, Offset.Create(X86Register.eax, 0, true)));
-            else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, 0, true)));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, 0)));
+            else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, 0)));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -964,9 +964,13 @@ namespace PlatinumC.Shared
 
         public override void Visit(X86CompilationContext context)
         {
-            context.AddInstruction(X86Instructions.Mov(X86ByteRegister.bl, Value));
-            context.AddInstruction(X86Instructions.Movzx(X86Register.eax, X86ByteRegister.bl));
-            context.AddInstruction(X86Instructions.Push(X86Register.eax, false));
+            // because twos compliment representation this is effectively the same as 
+            // mov al
+            // push eax
+            // except this is more efficient in that it prevents a register stall
+            // (moving data into part of a register, then later accessing the entire register)
+            // and uses less instructions
+            context.AddInstruction(X86Instructions.Push((int)Value));
         }
     }
 
@@ -1003,9 +1007,9 @@ namespace PlatinumC.Shared
             Lhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             
-            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Mov(X86ByteRegister.bl, Offset.Create(X86Register.eax, Lhs.ResolvedType.GetMemberOffset(MemberTarget), true)));
-            else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, Lhs.ResolvedType.GetMemberOffset(MemberTarget), true)));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx, false));
+            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, Lhs.ResolvedType.GetMemberOffset(MemberTarget))));
+            else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, Lhs.ResolvedType.GetMemberOffset(MemberTarget))));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
     }
 
@@ -1024,9 +1028,8 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            context.AddInstruction(X86Instructions.Movsx(X86Register.eax, X86ByteRegister.bl));
-            context.AddInstruction(X86Instructions.Push(X86Register.eax, false));
+            // Due to how we handle bytes and byte operations,
+            // we can safely assume no conversion is needed
         }
     }
 
@@ -1043,8 +1046,8 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Cvtsi2ss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0, true)));
-            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0, true), XmmRegister.xmm0));
+            context.AddInstruction(X86Instructions.Cvtsi2ss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 0)));
+            context.AddInstruction(X86Instructions.Movss(Offset.Create(X86Register.esp, 0), XmmRegister.xmm0));
         }
     }
 
@@ -1061,8 +1064,8 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Cvtss2si(X86Register.eax, Offset.Create(X86Register.esp, 0, true)));
-            context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.esp, 0, true), X86Register.eax));
+            context.AddInstruction(X86Instructions.Cvtss2si(X86Register.eax, Offset.Create(X86Register.esp, 0)));
+            context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.esp, 0), X86Register.eax));
         }
     }
 
@@ -1104,7 +1107,7 @@ namespace PlatinumC.Shared
 
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Neg(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Neg(Offset.Create(X86Register.esp, 0)));
         }
     }
 
@@ -1125,7 +1128,7 @@ namespace PlatinumC.Shared
 
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Neg(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Neg(Offset.Create(X86Register.esp, 0)));
         }
     }
 
@@ -1147,7 +1150,7 @@ namespace PlatinumC.Shared
 
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Not(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Not(Offset.Create(X86Register.esp, 0)));
         }
     }
 
@@ -1168,7 +1171,7 @@ namespace PlatinumC.Shared
 
             base.Visit(context);
             Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Not(Offset.Create(X86Register.esp, 0, true)));
+            context.AddInstruction(X86Instructions.Not(Offset.Create(X86Register.esp, 0)));
         }
     }
 

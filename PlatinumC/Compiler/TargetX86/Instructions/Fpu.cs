@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace PlatinumC.Compiler.TargetX86.Instructions
 {
-    public class Fstp : X86Instruction
+    public class Fstp_Offset : X86Instruction
     {
         public RegisterOffset Destination { get; set; }
 
-        public Fstp(RegisterOffset destination)
+        public Fstp_Offset(RegisterOffset destination)
         {
             Destination = destination;
         }
@@ -36,11 +36,11 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Fld : X86Instruction
+    public class Fld_Offset : X86Instruction
     {
         public RegisterOffset Source { get; set; }
 
-        public Fld(RegisterOffset source)
+        public Fld_Offset(RegisterOffset source)
         {
             Source = source;
         }

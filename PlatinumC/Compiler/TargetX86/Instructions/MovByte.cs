@@ -38,11 +38,11 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class Movsx : X86Instruction
+    public class Movsx_Register_Offset : X86Instruction
     {
         public X86Register Destination { get; set; }
-        public X86ByteRegister Source { get; set; }
-        public Movsx(X86Register destination, X86ByteRegister source)
+        public RegisterOffset_Byte Source { get; set; }
+        public Movsx_Register_Offset(X86Register destination, RegisterOffset_Byte source)
         {
             Destination = destination;
             Source = source;

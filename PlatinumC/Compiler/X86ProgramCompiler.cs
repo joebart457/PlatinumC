@@ -151,9 +151,9 @@ namespace PlatinumC.Compiler
         public RegisterOffset GetIdentifierOffset(IToken identifier)
         {
             var foundParameterIndex = CurrentFunction.Parameters.FindIndex(x => x.ParameterName.Lexeme == identifier.Lexeme);
-            if (foundParameterIndex != -1) return new RegisterOffset(X86Register.ebp, 8 + (foundParameterIndex * 4), true);
+            if (foundParameterIndex != -1) return new RegisterOffset(X86Register.ebp, 8 + (foundParameterIndex * 4));
             var foundLocalVariableIndex = CurrentFunction.LocalVariables.FindIndex(x => x.Identifier.Lexeme == identifier.Lexeme);
-            if (foundLocalVariableIndex != -1) return new RegisterOffset(X86Register.ebp, -4 - (foundLocalVariableIndex * 4), true);
+            if (foundLocalVariableIndex != -1) return new RegisterOffset(X86Register.ebp, -4 - (foundLocalVariableIndex * 4));
             throw new Exception($"local variable {identifier} does not exist");
         }
 
@@ -223,7 +223,7 @@ namespace PlatinumC.Compiler
     {
         private readonly ProgramParser _parser = new();
         private readonly TypeResolver _resolver = new();
-        private readonly X86Optimizer _optimizer = new(); 
+        private readonly X86AssemblyOptimizer _optimizer = new(); 
         public string? EmitBinary(CompilationOptions compilationOptions)
         {
             var result = Compile(compilationOptions);

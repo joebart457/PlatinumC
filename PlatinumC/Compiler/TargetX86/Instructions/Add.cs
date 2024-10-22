@@ -9,17 +9,17 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
     public class Add_Register_Immediate : X86Instruction
     {
         public X86Register Destination { get; set; }
-        public int Value { get; set; }
+        public int ValueToAdd { get; set; }
 
-        public Add_Register_Immediate(X86Register destination, int value)
+        public Add_Register_Immediate(X86Register destination, int valueToAdd)
         {
             Destination = destination;
-            Value = value;
+            ValueToAdd = valueToAdd;
         }
 
         public override string Emit()
         {
-            return $"add {Destination}, {Value}";
+            return $"add {Destination}, {ValueToAdd}";
         }
     }
 

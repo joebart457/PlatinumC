@@ -84,7 +84,7 @@ namespace PlatinumC.Shared
             foreach (var statement in Body) statement.Visit(this);
             context.EnterFunction(this);
             context.AddInstruction(X86Instructions.Label(GetDecoratedFunctionIdentifier()));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebp, false));
+            context.AddInstruction(X86Instructions.Push(X86Register.ebp));
             context.AddInstruction(X86Instructions.Mov(X86Register.ebp, X86Register.esp));
             context.AddInstruction(X86Instructions.Sub(X86Register.esp, 4 * (context.CurrentFunction.LocalVariables.Count + 1)));
 

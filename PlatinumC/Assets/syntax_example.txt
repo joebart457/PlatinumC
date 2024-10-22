@@ -40,7 +40,7 @@ void Main(){
 	float fY = fX + 9.01f;
 
 
-	if (fY != 10.02f){
+	if (fY >= 10.02f){
 		printf_float("float's work and value was %f", fY, 0);
 	}
 	ExitProcess(0);

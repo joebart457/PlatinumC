@@ -7,19 +7,17 @@ using System.Threading.Tasks;
 
 namespace PlatinumC.Compiler.TargetX86.Instructions
 {
-    public class Push : X86Instruction
+    public class Push_Register : X86Instruction
     {
         public X86Register Register { get; set; }
-        public bool IsIndirect { get; set; }
-        public Push(X86Register register, bool isIndirect)
+        public Push_Register(X86Register register)
         {
             Register = register;
-            IsIndirect = isIndirect;
         }
 
         public override string Emit()
         {
-            return $"push {(IsIndirect ? $"dword [{Register}]" : Register.ToString())}";
+            return $"push {Register}";
         }
     }
 

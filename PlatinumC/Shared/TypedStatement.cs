@@ -103,8 +103,8 @@ namespace PlatinumC.Shared
             {
                 comparison_Float_Float.Lhs.Visit(context);
                 comparison_Float_Float.Rhs.Visit(context);
-                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0)));
                 context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
                 if (comparison_Float_Float.ComparisonType == ComparisonType.Equal || comparison_Float_Float.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Ucomiss(XmmRegister.xmm0, XmmRegister.xmm1));
                 else context.AddInstruction(X86Instructions.Comiss(XmmRegister.xmm0, XmmRegister.xmm1));
@@ -194,8 +194,8 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Label(startLabel));
                 comparison_Float_Float.Lhs.Visit(context);
                 comparison_Float_Float.Rhs.Visit(context);
-                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4, true)));
-                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm0, Offset.Create(X86Register.esp, 4)));
+                context.AddInstruction(X86Instructions.Movss(XmmRegister.xmm1, Offset.Create(X86Register.esp, 0)));
                 context.AddInstruction(X86Instructions.Add(X86Register.esp, 8));
                 
                 if (comparison_Float_Float.ComparisonType == ComparisonType.Equal || comparison_Float_Float.ComparisonType == ComparisonType.NotEqual) context.AddInstruction(X86Instructions.Ucomiss(XmmRegister.xmm0, XmmRegister.xmm1));
@@ -335,7 +335,7 @@ namespace PlatinumC.Shared
 
             if (ValueToReturn.ResolvedType.Is(SupportedType.Float))
             {
-                context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0, true)));
+                context.AddInstruction(X86Instructions.Fld(Offset.Create(X86Register.esp, 0)));
                 context.AddInstruction(X86Instructions.Add(X86Register.esp, 4));
             }
 

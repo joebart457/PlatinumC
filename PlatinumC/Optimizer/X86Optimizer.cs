@@ -1,7 +1,7 @@
 ﻿using Microsoft.Win32;
 using PlatinumC.Compiler;
 using PlatinumC.Compiler.TargetX86.Instructions;
-
+/*
 namespace PlatinumC.Optimizer
 {
     public class X86Optimizer
@@ -171,7 +171,7 @@ namespace PlatinumC.Optimizer
             {
                 WipeRegister(add_Register_Register.Destination);
             }
-            else if (instruction is Sub sub)
+            else if (instruction is Sub_Register_Immediate sub)
             {
                 WipeRegister(sub.Destination);
             }
@@ -296,7 +296,7 @@ namespace PlatinumC.Optimizer
                     SetTopOfStack(RegisterOffsetOrImmediate.Create(mov_Offset_Immediate.Immediate));
 
             }
-            else if (instruction is Fstp fstp)
+            else if (instruction is Fstp_Offset fstp)
             {
                 WipeMemory(fstp.Destination);
                 var destination = RegisterOffsetOrImmediate.Create(fstp.Destination);
@@ -566,7 +566,7 @@ namespace PlatinumC.Optimizer
                                 // mov eax, dword [esp]
                                 // optimization:
                                 // push eax
-                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(push.Register, false)));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(push.Register)));
                                 i++;
                                 continue;
                             }
@@ -586,7 +586,7 @@ namespace PlatinumC.Optimizer
                             var registerWithSameValueIndex = _registerValues.Keys.ToList().FindIndex(key => _registerValues[key].Equals(pushSource));
                             if (registerWithSameValueIndex != -1)
                             {
-                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(_registerValues.Keys.ElementAt(registerWithSameValueIndex), false)));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(_registerValues.Keys.ElementAt(registerWithSameValueIndex))));
                                 continue;
                             }
                         }
@@ -604,7 +604,7 @@ namespace PlatinumC.Optimizer
                         var registerWithSameValueIndex = _registerValues.Keys.ToList().FindIndex(key => _registerValues[key].Equals(pushSource));
                         if (registerWithSameValueIndex != -1)
                         {
-                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(_registerValues.Keys.ElementAt(registerWithSameValueIndex), false)));
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(_registerValues.Keys.ElementAt(registerWithSameValueIndex))));
                             continue;
                         }
 
@@ -667,7 +667,7 @@ namespace PlatinumC.Optimizer
                                 continue;
                             }
                         }
-                        if (Peek(fn.Instructions, i + 1) is Sub sub_Register_Immediate)
+                        if (Peek(fn.Instructions, i + 1) is Sub_Register_Immediate sub_Register_Immediate)
                         {
                             // Test for following scenario
                             // add eax, 4
@@ -692,9 +692,9 @@ namespace PlatinumC.Optimizer
                         }
 
                     }
-                    else if (instruction is Sub sub_Register_ImmediateValue)
+                    else if (instruction is Sub_Register_Immediate sub_Register_ImmediateValue)
                     {
-                        if (Peek(fn.Instructions, i + 1) is Sub sub)
+                        if (Peek(fn.Instructions, i + 1) is Sub_Register_Immediate sub)
                         {
                             // Test for following scenario
                             // add eax, 4
@@ -774,7 +774,7 @@ namespace PlatinumC.Optimizer
                             }
                         }
                     }
-                    else if (instruction is Cmp cmp_Register_Register)
+                    else if (instruction is Cmp_Register_Register cmp_Register_Register)
                     {
                         _registerValues.TryGetValue(cmp_Register_Register.Operand2, out var operand2Value);
 
@@ -994,7 +994,7 @@ namespace PlatinumC.Optimizer
                                 // mov eax, dword [esp]
                                 // optimization:
                                 // push eax
-                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(push.Register, false)));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(push.Register)));
                                 i++;
                                 continue;
                             }
@@ -1116,7 +1116,7 @@ namespace PlatinumC.Optimizer
             {
                 if (add_Register_Register.Destination == register || add_Register_Register.Source == register) return true;
             }
-            else if (instruction is Sub sub)
+            else if (instruction is Sub_Register_Immediate sub)
             {
                 if (sub.Destination == register) return true;
             }
@@ -1124,7 +1124,7 @@ namespace PlatinumC.Optimizer
             {
                 if (sub_Register_Register.Destination == register || sub_Register_Register.Source == register) return true;
             }
-            else if (instruction is Cmp cmp)
+            else if (instruction is Cmp_Register_Register cmp)
             {
                 if (cmp.Operand1 == register || cmp.Operand2 == register) return true;
             }
@@ -1136,11 +1136,11 @@ namespace PlatinumC.Optimizer
             {
                 if (cmp_Register_Immediate.Operand1 == register) return true;
             }
-            else if (instruction is Test test)
+            else if (instruction is Test_Register_Register test)
             {
                 if (test.Operand1 == register || test.Operand2 == register) return true;
             }
-            else if (instruction is Test_Offset test_offset)
+            else if (instruction is Test_Register_Offset test_offset)
             {
                 if (test_offset.Operand1 == register || test_offset.Operand2.Register == register) return true;
             }
@@ -1170,7 +1170,7 @@ namespace PlatinumC.Optimizer
             {
                 if (mov_Offset_Immediate.Destination.Register == register) return true;
             }
-            else if (instruction is Fstp fstp)
+            else if (instruction is Fstp_Offset fstp)
             {
                 if (fstp.Destination.Register == register) return true;
             }
@@ -1298,7 +1298,7 @@ namespace PlatinumC.Optimizer
             {
                 if (mov_Offset_Immediate.Destination.Equals(registerOffset)) return true;
             }
-            else if (instruction is Fstp fstp)
+            else if (instruction is Fstp_Offset fstp)
             {
                 if (fstp.Destination.Equals(registerOffset)) return true;
             }
@@ -1326,7 +1326,7 @@ namespace PlatinumC.Optimizer
             {
                 if (lea.Source.Equals(registerOffset)) return true;
             }
-            else if (instruction is Test_Offset test_offset)
+            else if (instruction is Test_Register_Offset test_offset)
             {
                 if (test_offset.Operand2.Equals(registerOffset)) return true;
             }
@@ -1411,7 +1411,7 @@ namespace PlatinumC.Optimizer
             {
                 if (mov_Offset_Immediate.Destination.Equals(registerOffset)) isAssignedTo = true;
             }
-            else if (instruction is Fstp fstp)
+            else if (instruction is Fstp_Offset fstp)
             {
                 if (fstp.Destination.Equals(registerOffset)) isAssignedTo = true;
             }
@@ -1441,3 +1441,4 @@ namespace PlatinumC.Optimizer
         
     }
 }
+    */

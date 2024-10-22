@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace PlatinumC.Compiler.TargetX86.Instructions
 {
-    public class Sub : X86Instruction
+    public class Sub_Register_Immediate : X86Instruction
     {
         public X86Register Destination { get; set; }
         public int ValueToSubtract { get; set; }
-        public Sub(X86Register destination, int valueToSubtract)
+        public Sub_Register_Immediate(X86Register destination, int valueToSubtract)
         {
             Destination = destination;
             ValueToSubtract = valueToSubtract;

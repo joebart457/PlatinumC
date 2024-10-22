@@ -13,27 +13,22 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
     public static class X86Instructions
     {
         public static Cdq Cdq() => new Cdq();
-        public static Push Push(X86Register register, bool isIndirect) => new Push(register, isIndirect);
+        public static Push_Register Push(X86Register register) => new Push_Register(register);
         public static Push_Offset Push(RegisterOffset offset) => new Push_Offset(offset);
         public static Push_Address Push(string address, bool isIndirect) => new Push_Address(address, isIndirect);
         public static Push_Immediate<int> Push(int immediateValue) => new Push_Immediate<int>(immediateValue);
-        public static Push_Immediate<float> Push(float immediateValue) => new Push_Immediate<float>(immediateValue);
 
-        public static Lea Lea(X86Register destination, RegisterOffset source) => new Lea(destination, source);
+        public static Lea_Register_Offset Lea(X86Register destination, RegisterOffset source) => new Lea_Register_Offset(destination, source);
 
         public static Mov_Register_Offset Mov(X86Register destination, RegisterOffset source) => new Mov_Register_Offset(destination, source);
         public static Mov_Offset_Register Mov(RegisterOffset destination, X86Register source) => new Mov_Offset_Register(destination, source);
         public static Mov_Offset_Immediate Mov(RegisterOffset destination, int immediate) => new Mov_Offset_Immediate(destination, immediate);
         public static Mov_Register_Register Mov(X86Register destination, X86Register source) => new Mov_Register_Register(destination, source);
         public static Mov_Register_Immediate Mov(X86Register destination, int immediate) => new Mov_Register_Immediate(destination, immediate);
-        public static Mov_Register_Immediate__Byte Mov(X86ByteRegister destination, byte immediate) => new Mov_Register_Immediate__Byte(destination, immediate);
 
         public static Mov_Offset_Register__Byte Mov(RegisterOffset destination, X86ByteRegister source) => new Mov_Offset_Register__Byte(destination, source);
-        public static Mov_Register_Offset__Byte Mov(X86ByteRegister destination, RegisterOffset source) => new Mov_Register_Offset__Byte(destination, source);
-        public static Movsx Movsx(X86Register destination, X86ByteRegister source) => new Movsx(destination, source);
-        public static Movzx Movzx(X86Register destination, X86ByteRegister source) => new Movzx(destination, source);
-
-        public static Sub Sub(X86Register destination, int valueToSubtract) => new Sub(destination, valueToSubtract);
+        public static Movsx_Register_Offset Movsx(X86Register destination, RegisterOffset_Byte source) => new Movsx_Register_Offset(destination, source);
+        public static Sub_Register_Immediate Sub(X86Register destination, int valueToSubtract) => new Sub_Register_Immediate(destination, valueToSubtract);
         public static Sub_Register_Register Sub(X86Register destination, X86Register source) => new Sub_Register_Register(destination, source);
 
         public static Add_Register_Immediate Add(X86Register destination, int value) => new Add_Register_Immediate(destination, value);
@@ -43,19 +38,16 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static And_Register_Register And(X86Register destination, X86Register source) => new And_Register_Register(destination, source);
         public static Or_Register_Register Or(X86Register destination, X86Register source) => new Or_Register_Register(destination, source);
         public static Xor_Register_Register Xor(X86Register destination, X86Register source) => new Xor_Register_Register(destination, source);
-        public static And_Register_Register__Byte And(X86ByteRegister destination, X86ByteRegister source) => new And_Register_Register__Byte(destination, source);
-        public static Or_Register_Register__Byte Or(X86ByteRegister destination, X86ByteRegister source) => new Or_Register_Register__Byte(destination, source);
-        public static Xor_Register_Register__Byte Xor(X86ByteRegister destination, X86ByteRegister source) => new Xor_Register_Register__Byte(destination, source);
 
 
         public static Pop_Register Pop(X86Register destination) => new Pop_Register(destination);
 
-        public static Neg Neg(RegisterOffset divisor) => new Neg(divisor);
-        public static Not Not(RegisterOffset divisor) => new Not(divisor);
+        public static Neg_Offset Neg(RegisterOffset divisor) => new Neg_Offset(divisor);
+        public static Not_Offset Not(RegisterOffset divisor) => new Not_Offset(divisor);
 
-        public static IDiv IDiv(RegisterOffset divisor) => new IDiv(divisor);
-        public static IMul IMul(X86Register destination, X86Register source) => new IMul(destination, source);
-        public static IMul_Immediate IMul(X86Register destination, int immediate) => new IMul_Immediate(destination, immediate);
+        public static IDiv_Offset IDiv(RegisterOffset divisor) => new IDiv_Offset(divisor);
+        public static IMul_Register_Register IMul(X86Register destination, X86Register source) => new IMul_Register_Register(destination, source);
+        public static IMul_Register_Immediate IMul(X86Register destination, int immediate) => new IMul_Register_Immediate(destination, immediate);
         public static Add_Register_Offset Add(X86Register destination, RegisterOffset source) => new Add_Register_Offset(destination, source);
         
 
@@ -75,9 +67,9 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Jb Jb(string label) => new Jb(label);
         public static Jbe Jbe(string label) => new Jbe(label);
 
-        public static Test Test(X86Register operand1, X86Register operand2) => new Test(operand1, operand2);
-        public static Test_Offset Test(X86Register operand1, RegisterOffset operand2) => new Test_Offset(operand1, operand2);
-        public static Cmp Cmp(X86Register operand1, X86Register operand2) => new Cmp(operand1, operand2);
+        public static Test_Register_Register Test(X86Register operand1, X86Register operand2) => new Test_Register_Register(operand1, operand2);
+        public static Test_Register_Offset Test(X86Register operand1, RegisterOffset operand2) => new Test_Register_Offset(operand1, operand2);
+        public static Cmp_Register_Register Cmp(X86Register operand1, X86Register operand2) => new Cmp_Register_Register(operand1, operand2);
         public static Cmp_Register_Immediate Cmp(X86Register operand1, int operand2) => new Cmp_Register_Immediate(operand1, operand2);
         public static Cmp_Byte_Byte Cmp(X86ByteRegister operand1, X86ByteRegister operand2) => new Cmp_Byte_Byte(operand1, operand2);
 
@@ -86,32 +78,8 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Ret Ret() => new Ret();
         public static Ret_Immediate Ret(int immediate) => new Ret_Immediate(immediate);
 
-
-
-        public static Fstp Fstp(RegisterOffset destination) => new Fstp(destination);
-        public static Fstp_Register Fstp(X87Register register) => new Fstp_Register(register);
-        public static Fld Fld(RegisterOffset source) => new Fld(source);
-        public static Fild Fild(RegisterOffset source) => new Fild(source);
-        public static Fistp Fistp(RegisterOffset source) => new Fistp(source);
-        public static FAdd FAdd(RegisterOffset source) => new FAdd(source);
-        public static FiAdd FiAdd(RegisterOffset source) => new FiAdd(source);
-        public static FSub FSub(RegisterOffset source) => new FSub(source);
-        public static FiSub FiSub(RegisterOffset source) => new FiSub(source);
-        public static FMul FMul(RegisterOffset source) => new FMul(source);
-        public static FiMul FiMul(RegisterOffset source) => new FiMul(source);
-        public static FDiv FDiv(RegisterOffset source) => new FDiv(source);
-        public static FiDiv FiDiv(RegisterOffset source) => new FiDiv(source);
-        public static FAddp FAddp() => new FAddp();
-        public static FiAddp FiAddp() => new FiAddp();
-        public static FSubp FSubp() => new FSubp();
-        public static FiSubp FiSubp() => new FiSubp();
-        public static FMulp FMulp() => new FMulp();
-        public static FiMulp FiMulp() => new FiMulp();
-        public static FDivp FDivp() => new FDivp();
-        public static FiDivp FiDivp() => new FiDivp();
-        public static FComip FComip() => new FComip(X87Register.st1);
-
-
+        public static Fstp_Offset Fstp(RegisterOffset destination) => new Fstp_Offset(destination);
+        public static Fld_Offset Fld(RegisterOffset source) => new Fld_Offset(source);
 
         public static Movss_Offset_Register Movss(RegisterOffset destination, XmmRegister source) => new Movss_Offset_Register(destination, source);
         public static Movss_Register_Offset Movss(XmmRegister destination, RegisterOffset source) => new Movss_Register_Offset(destination, source);

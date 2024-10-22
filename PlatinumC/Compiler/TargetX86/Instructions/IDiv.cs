@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace PlatinumC.Compiler.TargetX86.Instructions
 {
-    public class IDiv : X86Instruction
+    public class IDiv_Offset : X86Instruction
     {
         public RegisterOffset Divisor { get; set; }
 
-        public IDiv(RegisterOffset divisor)
+        public IDiv_Offset(RegisterOffset divisor)
         {
             Divisor = divisor;
         }

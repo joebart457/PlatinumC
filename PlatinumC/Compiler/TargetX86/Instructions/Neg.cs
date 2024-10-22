@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace PlatinumC.Compiler.TargetX86.Instructions
 {
-    public class Neg : X86Instruction
+    public class Neg_Offset : X86Instruction
     {
         public RegisterOffset Operand { get; set; }
 
-        public Neg(RegisterOffset operand)
+        public Neg_Offset(RegisterOffset operand)
         {
             Operand = operand;
         }
