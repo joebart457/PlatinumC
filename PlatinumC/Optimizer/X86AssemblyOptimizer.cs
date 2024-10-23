@@ -910,7 +910,27 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Jmp jmp)
                     {
+                        if (jmp.Emit().StartsWith("jmp")) // If it is an unconditional jump
+                        {
+                            if (Peek(fn.Instructions, i + 1) is Label label1 && label1.Text == jmp.Label)
+                            {
+                                // if we are jumping unconditionally to a label that immediately follows the jump, we do not need to jump
+                                // but we cannot omit the label because it may be referenced elsewhere (or externally)
+                                continue;
+                            }
+                            // otherwise search for the next label
+                            var nextLabelIndex = fn.Instructions.Skip(i).ToList().FindIndex(x => x is Label);
+                            if (nextLabelIndex != -1) // if we found a label
+                            {
+                                // skip to the next label since code up until that point is unreachable
+                                i = nextLabelIndex + i - 1;
+                                optimizedInstructions.Add(TrackInstruction(jmp));
+                                continue;
+                            }
+                            
 
+                            
+                        }
                     }
                     if (instruction is Test_Register_Register test_Register_Register)
                     {
