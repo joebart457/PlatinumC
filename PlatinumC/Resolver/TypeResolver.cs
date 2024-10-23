@@ -421,10 +421,38 @@ namespace PlatinumC.Resolver
             {
                 _currentFunction.Body.Add(statement.Visit(this));
             }
+            var encounteredReturn = VerifyAllBranchesReturn(_currentFunction.Body);
+            if (!encounteredReturn)
+            {
+                if (_currentFunction.ReturnType.Is(SupportedType.Void)) _currentFunction.Body.Add(new TypedReturnStatement(new ReturnStatement(functionDeclaration.FunctionIdentifier, null), null));
+                else throw new ParsingException(functionDeclaration.FunctionIdentifier, $"function {functionDeclaration.FunctionIdentifier.Lexeme} not all codepaths return a value");
+            }
             _functions[functionDeclaration.FunctionIdentifier.Lexeme] = _currentFunction;
             _currentFunction = null;
             _localVariables.Clear();
             return function;
+        }
+
+        private bool VerifyAllBranchesReturn(List<TypedStatement> statements)
+        {
+            bool encounteredReturn = false;
+            foreach(var statement in statements)
+            {
+                if (statement is TypedReturnStatement) encounteredReturn = true;
+                if (statement is TypedIfStatement ifStatement)
+                {
+                    bool elseReturns = ifStatement.ElseDo == null ?  true : VerifyAllBranchesReturn([ifStatement.ElseDo]);
+                    bool returnedInBothBranches = VerifyAllBranchesReturn([ifStatement.ThenDo]) && elseReturns;
+                    if (statement == statements.Last())
+                    {
+                        if (!returnedInBothBranches && !CurrentFunction.ReturnType.Is(SupportedType.Void)) throw new ParsingException(ifStatement.OriginalStatement.Token, $"not all branches return a value");
+                    }
+                    if (returnedInBothBranches) encounteredReturn = true;
+                }
+                if (statement is TypedWhileStatement whileStatement) encounteredReturn |= VerifyAllBranchesReturn([whileStatement.ThenDo]);
+                if (statement is TypedBlock typedBlock) encounteredReturn |= VerifyAllBranchesReturn(typedBlock.Statements);
+            }
+            return encounteredReturn;
         }
 
         internal TypedDeclaration Accept(ImportLibraryDeclaration importLibraryDeclaration)
