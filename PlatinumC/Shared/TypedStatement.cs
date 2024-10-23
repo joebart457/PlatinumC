@@ -139,7 +139,29 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Label(ifLabel));
                 ThenDo.Visit(context);
                 context.AddInstruction(X86Instructions.Label(endLabel));
-            } else throw new NotImplementedException();
+            } else
+            {
+                if (ElseDo == null)
+                {
+                    Condition.Visit(context);
+                    context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+                    context.AddInstruction(X86Instructions.Test(X86Register.eax, X86Register.eax));
+                    context.AddInstruction(X86Instructions.Jz(endLabel));
+                    ThenDo.Visit(context);
+                    context.AddInstruction(X86Instructions.Label(endLabel));
+                } else
+                {
+                    Condition.Visit(context);
+                    context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+                    context.AddInstruction(X86Instructions.Test(X86Register.eax, X86Register.eax));
+                    context.AddInstruction(X86Instructions.Jnz(ifLabel));
+                    ElseDo.Visit(context);
+                    context.AddInstruction(X86Instructions.Jmp(endLabel));
+                    context.AddInstruction(X86Instructions.Label(ifLabel));
+                    ThenDo.Visit(context);
+                    context.AddInstruction(X86Instructions.Label(endLabel));
+                }
+            }
 
         }
 
@@ -234,7 +256,17 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Jmp(startLabel));
                 context.AddInstruction(X86Instructions.Label(endLabel));
             }
-            else throw new NotImplementedException();
+            else
+            {
+                context.AddInstruction(X86Instructions.Label(startLabel));
+                Condition.Visit(context);
+                context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+                context.AddInstruction(X86Instructions.Test(X86Register.eax, X86Register.eax));
+                context.AddInstruction(X86Instructions.Jz(endLabel));
+                ThenDo.Visit(context);
+                context.AddInstruction(X86Instructions.Jmp(startLabel));
+                context.AddInstruction(X86Instructions.Label(endLabel));
+            }
 
             context.ExitLoop();
         }

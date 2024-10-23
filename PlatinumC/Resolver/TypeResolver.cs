@@ -11,7 +11,7 @@ namespace PlatinumC.Resolver
         private Dictionary<string, TypedFunctionDeclaration> _functions { get; set; } = new();
         private Dictionary<string, TypedImportedFunctionDeclaration> _importedFunctions { get; set; } = new();
         private TypedFunctionDeclaration? _currentFunction;
-        private TypedFunctionDeclaration CurrentFunction => _currentFunction ?? throw new InvalidOperationException();
+        private TypedFunctionDeclaration CurrentFunction => _currentFunction ?? throw new Exception("statement is invalid outside of function body");
         private Dictionary<string, TypedImportLibraryDeclaration> _importedLibraries = new();
         private class LoopInfo {}
         private Stack<LoopInfo> _loops = new();
