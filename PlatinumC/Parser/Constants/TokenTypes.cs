@@ -53,5 +53,8 @@ namespace PlatinumC.Parser.Constants
         public static string UpCarat = "UpCarat";
         public static string Not = "Not";
         public static string BitwiseNot = "BitwiseNot";
+        public static string Nullptr = "Nullptr";
+        public static string Global = "Global";
+        public static string As = "As";
     }
 }

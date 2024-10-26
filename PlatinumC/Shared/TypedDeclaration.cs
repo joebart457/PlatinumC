@@ -154,6 +154,102 @@ namespace PlatinumC.Shared
             base.Visit(context);
             context.AddImportedFunction(this);
         }
+    }
+
+    public class TypedGlobalVariableDeclaration_Integer : TypedDeclaration
+    {
+        public ResolvedType ResolvedType { get; set; }
+        public IToken Identifier { get; set; }
+        public int Initializer { get; set; }
+        public TypedGlobalVariableDeclaration_Integer(Declaration originalDeclaration, ResolvedType resolvedType, IToken identifier, int initializer) : base(originalDeclaration)
+        {
+            ResolvedType = resolvedType;
+            Identifier = identifier;
+            Initializer = initializer;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            context.AddIntegerData(Initializer, Identifier.Lexeme);
+        }
 
     }
+
+    public class TypedGlobalVariableDeclaration_Float : TypedDeclaration
+    {
+        public ResolvedType ResolvedType { get; set; }
+        public IToken Identifier { get; set; }
+        public float Initializer { get; set; }
+        public TypedGlobalVariableDeclaration_Float(Declaration originalDeclaration, ResolvedType resolvedType, IToken identifier, float initializer) : base(originalDeclaration)
+        {
+            ResolvedType = resolvedType;
+            Identifier = identifier;
+            Initializer = initializer;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            context.AddSinglePrecisionFloatingPointData(Initializer, Identifier.Lexeme);
+        }
+
+    }
+
+    public class TypedGlobalVariableDeclaration_Byte : TypedDeclaration
+    {
+        public ResolvedType ResolvedType { get; set; }
+        public IToken Identifier { get; set; }
+        public byte Initializer { get; set; }
+        public TypedGlobalVariableDeclaration_Byte(Declaration originalDeclaration, ResolvedType resolvedType, IToken identifier, byte initializer) : base(originalDeclaration)
+        {
+            ResolvedType = resolvedType;
+            Identifier = identifier;
+            Initializer = initializer;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            var storageOffset = context.GetIdentifierOffset(Identifier);
+            context.AddByteData(Initializer, Identifier.Lexeme);
+        }
+    }
+    public class TypedGlobalVariableDeclaration_String : TypedDeclaration
+    {
+        public ResolvedType ResolvedType { get; set; }
+        public IToken Identifier { get; set; }
+        public string Initializer { get; set; }
+        public TypedGlobalVariableDeclaration_String(Declaration originalDeclaration, ResolvedType resolvedType, IToken identifier, string initializer) : base(originalDeclaration)
+        {
+            ResolvedType = resolvedType;
+            Identifier = identifier;
+            Initializer = initializer;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            context.AddStringData(Initializer, Identifier.Lexeme);
+        }
+    }
+
+    public class TypedGlobalVariableDeclaration_NullPointer : TypedDeclaration
+    {
+        public ResolvedType ResolvedType { get; set; }
+        public IToken Identifier { get; set; }
+        public TypedGlobalVariableDeclaration_NullPointer(Declaration originalDeclaration, ResolvedType resolvedType, IToken identifier) : base(originalDeclaration)
+        {
+            ResolvedType = resolvedType;
+            Identifier = identifier;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            context.AddPointerData(0, Identifier.Lexeme);
+        }
+
+    }
+
 }

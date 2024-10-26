@@ -123,4 +123,22 @@ namespace PlatinumC.Shared
             return resolver.Accept(this);
         }
     }
+
+    public class GlobalVariableDeclaration : Declaration
+    {
+        public TypeSymbol TypeSymbol { get; set; }
+        public IToken Identifier { get; set; }
+        public Expression Initializer { get; set; }
+        public GlobalVariableDeclaration(IToken token, TypeSymbol typeSymbol, IToken identifier, Expression initializer) : base(token)
+        {
+            TypeSymbol = typeSymbol;
+            Identifier = identifier;
+            Initializer = initializer;
+        }
+
+        public override TypedDeclaration Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
 }

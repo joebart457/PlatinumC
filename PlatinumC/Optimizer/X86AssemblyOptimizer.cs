@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static PlatinumC.Compiler.TargetX86.Instructions.Mov_SymbolOffset_Register;
 
 namespace PlatinumC.Optimizer
 {
@@ -47,9 +48,9 @@ namespace PlatinumC.Optimizer
         }
         private Dictionary<X86Register, RegisterOffsetOrImmediate> _registerValues = new();
         private Dictionary<RegisterOffset, RegisterOffsetOrImmediate> _memoryMap = new();
+        private Dictionary<SymbolOffset, RegisterOffsetOrImmediate> _globalMemoryMap = new();
 
-        private RegisterOffset TopOfStack => Offset.Create(X86Register.eax, 0);
-
+        private RegisterOffset TopOfStack => Offset.Create(X86Register.esp, 0);
 
         public CompilationResult Optimize(CompilationResult compilationResult)
         {
@@ -85,6 +86,11 @@ namespace PlatinumC.Optimizer
             }
         }
 
+        private void InvalidateMemory(SymbolOffset symbolOffset)
+        {
+            _globalMemoryMap.Remove(symbolOffset);
+        }
+
         private void WipeMemory(X86Register register)
         {
 
@@ -96,6 +102,7 @@ namespace PlatinumC.Optimizer
                 }
             }
         }
+
 
         private void PushStack(RegisterOffsetOrImmediate? registerOffsetOrImmediate)
         {
@@ -147,6 +154,11 @@ namespace PlatinumC.Optimizer
         private void SetMemory(RegisterOffset offset, RegisterOffsetOrImmediate registerOffsetOrImmediate)
         {
             _memoryMap[offset] = registerOffsetOrImmediate;
+        }
+
+        private void SetMemory(SymbolOffset offset, RegisterOffsetOrImmediate registerOffsetOrImmediate)
+        {
+            _globalMemoryMap[offset] = registerOffsetOrImmediate;
         }
 
         private void SetRegister(X86Register register, RegisterOffsetOrImmediate registerOffsetOrImmediate)
@@ -440,6 +452,33 @@ namespace PlatinumC.Optimizer
             {
                 WipeRegister(cvtss2Si_Register_Offset.Destination);
             }
+            if (instruction is Push_SymbolOffset push_SymbolOffset)
+            {
+                if (_globalMemoryMap.TryGetValue(push_SymbolOffset.Offset, out var value))
+                    PushStack(value);
+                else PushStack(null);
+            }
+            if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            {
+                WipeRegister(lea_Register_SymbolOffset.Destination);
+            }
+            if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            {
+                if (_registerValues.TryGetValue(mov_SymbolOffset_Register.Source, out var value))
+                    SetMemory(mov_SymbolOffset_Register.Destination, value);
+            }
+            if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            {
+
+            }
+            if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
+            {
+                WipeRegister(movsx_Register_SymbolOffset.Destination);
+            }
+            if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+            {
+                SetMemory(mov_SymbolOffset_Immediate.Destination, RegisterOffsetOrImmediate.Create(mov_SymbolOffset_Immediate.ImmediateValue));
+            }
 
             return instruction;
         }
@@ -466,6 +505,17 @@ namespace PlatinumC.Optimizer
         {
             result = 0;
             if (_memoryMap.TryGetValue(registerOffset, out var value) && value.IsImmediate)
+            {
+                result = value.ImmediateValue;
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryGetImmediate(SymbolOffset symbolOffset, out int result)
+        {
+            result = 0;
+            if (_globalMemoryMap.TryGetValue(symbolOffset, out var value) && value.IsImmediate)
             {
                 result = value.ImmediateValue;
                 return true;
@@ -514,6 +564,15 @@ namespace PlatinumC.Optimizer
             return regValue.Equals(offsetValue);
         }
 
+        private bool IsEquivalent(X86Register register, SymbolOffset offset)
+        {
+            _registerValues.TryGetValue(register, out var regValue);
+            _globalMemoryMap.TryGetValue(offset, out var offsetValue);
+            if (regValue == null) return false;
+            if (regValue.IsRegisterOffset && regValue.RegisterOffset.Equals(offset)) return true;
+            return regValue.Equals(offsetValue);
+        }
+
         private bool IsEquivalent(RegisterOffset offset, X86Register register)
         {
             _registerValues.TryGetValue(register, out var regValue);
@@ -523,9 +582,25 @@ namespace PlatinumC.Optimizer
             return regValue.Equals(offsetValue);
         }
 
+        private bool IsEquivalent(SymbolOffset offset, X86Register register)
+        {
+            _registerValues.TryGetValue(register, out var regValue);
+            _globalMemoryMap.TryGetValue(offset, out var offsetValue);
+            if (regValue == null) return false;
+            if (regValue.IsRegisterOffset && regValue.RegisterOffset.Equals(offset)) return true;
+            return regValue.Equals(offsetValue);
+        }
+
         private bool IsEquivalent(RegisterOffset offset, int immediateValue)
         {
             _memoryMap.TryGetValue(offset, out var offsetValue);
+            if (offsetValue == null) return false;
+            return offsetValue.IsImmediate && offsetValue.ImmediateValue == immediateValue;
+        }
+
+        private bool IsEquivalent(SymbolOffset offset, int immediateValue)
+        {
+            _globalMemoryMap.TryGetValue(offset, out var offsetValue);
             if (offsetValue == null) return false;
             return offsetValue.IsImmediate && offsetValue.ImmediateValue == immediateValue;
         }
@@ -586,7 +661,7 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Push_Offset push_Offset)
                     {
-                        if (TryGetImmediate(push_Offset.Offset, out var immediate))
+                        if (TryGetImmediate(push_Offset.Offset, out var immediate) && !IsReferenced(fn.Instructions, i+1, push_Offset.Offset))
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(immediate)));
                             continue;
@@ -647,8 +722,9 @@ namespace PlatinumC.Optimizer
                     if (instruction is Mov_Offset_Register mov_Offset_Register)
                     {
                         if (IsEquivalent(mov_Offset_Register.Destination, mov_Offset_Register.Source)) continue;
-                        if (!IsReferenced(fn.Instructions, i + 1, mov_Offset_Register.Destination)) continue;
-                        if (TryGetImmediate(mov_Offset_Register.Source, out var immediate) && !IsReferenced(fn.Instructions, i + 1, mov_Offset_Register.Source))
+                        // We cannot skip any moves to offset because they may be local variables or offsets that may be passed or referenced down the call chain
+                        //if (!IsReferenced(fn.Instructions, i + 1, mov_Offset_Register.Destination)) continue;
+                        if (TryGetImmediate(mov_Offset_Register.Source, out var immediate))
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Offset_Register.Destination, immediate)));
                             continue;
@@ -657,7 +733,8 @@ namespace PlatinumC.Optimizer
                     if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
                     {
                         if (IsEquivalent(mov_Offset_Immediate.Destination, mov_Offset_Immediate.Immediate)) continue;
-                        if (!IsReferenced(fn.Instructions, i + 1, mov_Offset_Immediate.Destination)) continue;
+                        // We cannot skip any moves to offset because they may be local variables or offsets that may be passed or referenced down the call chain
+                        //if (!IsReferenced(fn.Instructions, i + 1, mov_Offset_Immediate.Destination)) continue;
                     }
                     if (instruction is Mov_Register_Register mov_Register_Register)
                     {
@@ -685,11 +762,13 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
                     {
-                        if (!IsReferenced(fn.Instructions, i + 1, mov_Offset_Register__Byte.Destination)) continue;
+                        // We cannot skip any moves to offset because they may be local variables or offsets that may be passed or referenced down the call chain
+                        //if (!IsReferenced(fn.Instructions, i + 1, mov_Offset_Register__Byte.Destination)) continue;
                     }
                     if (instruction is Movsx_Register_Offset movsx_Register_Offset)
                     {
-                        if (!IsReferenced(fn.Instructions, i + 1, movsx_Register_Offset.Destination)) continue;
+                        // We cannot skip any moves to offset because they may be local variables or offsets that may be passed or referenced down the call chain
+                        //if (!IsReferenced(fn.Instructions, i + 1, movsx_Register_Offset.Destination)) continue;
                     }
                     if (instruction is Sub_Register_Immediate sub_Register_Immediate)
                     {
@@ -1100,6 +1179,45 @@ namespace PlatinumC.Optimizer
                     {
 
                     }
+                    if (instruction is Push_SymbolOffset push_SymbolOffset)
+                    {
+                        if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_Register_Immediate1 && add_Register_Immediate1.Destination == X86Register.esp && add_Register_Immediate1.ValueToAdd == 4)
+                        {
+                            i++;
+                            continue;
+                        }
+
+                        if (TryGetImmediate(push_SymbolOffset.Offset, out var immediate))
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(immediate)));
+                            continue;
+                        }
+                    }
+                    if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+                    {
+
+                    }
+                    if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+                    {
+                        if (IsEquivalent(mov_SymbolOffset_Register.Destination, mov_SymbolOffset_Register.Source)) continue;
+                        if (TryGetImmediate(mov_SymbolOffset_Register.Source, out var immediate))
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_SymbolOffset_Register.Destination, immediate)));
+                            continue;
+                        }
+                    }
+                    if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+                    {
+
+                    }
+                    if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset__Byte)
+                    {
+
+                    }
+                    if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+                    {
+                        if (IsEquivalent(mov_SymbolOffset_Immediate.Destination, mov_SymbolOffset_Immediate.ImmediateValue)) continue;
+                    }
 
                     optimizedInstructions.Add(TrackInstruction(instruction));
                 }
@@ -1358,6 +1476,31 @@ namespace PlatinumC.Optimizer
             {
                 if (cvtss2Si_Register_Offset.Source.Equals(offset)) return true;
             }
+            if (instruction is Push_SymbolOffset push_SymbolOffset)
+            {
+
+            }
+            if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            {
+                if (lea_Register_SymbolOffset.Destination == offset.Register) return false;
+
+            }
+            if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            {
+
+            }
+            if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            {
+
+            }
+            if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
+            {
+                if (movsx_Register_SymbolOffset.Destination == offset.Register) return false;
+            }
+            if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+            {
+
+            }
 
             return IsReferenced(instructions, index + 1, originalOffset, offset, exploredLabels);
         }
@@ -1539,11 +1682,13 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Ret ret)
             {
-                return false;
+                // return values placed on eax
+                return register == X86Register.eax;
             }
             if (instruction is Ret_Immediate ret_Immediate)
             {
-                return false;
+                // return values placed on eax
+                return register == X86Register.eax;
             }
             if (instruction is Fstp_Offset fstp_Offset)
             {
@@ -1596,6 +1741,30 @@ namespace PlatinumC.Optimizer
             if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
             {
                 if (cvtss2Si_Register_Offset.Source.Register == register) return true;
+            }
+            if (instruction is Push_SymbolOffset push_SymbolOffset)
+            {
+
+            }
+            if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            {
+                if (lea_Register_SymbolOffset.Destination == register) return false;
+            }
+            if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            {
+                if (mov_SymbolOffset_Register.Source == register) return true;
+            }
+            if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            {
+                if (mov_SymbolOffset_Register__Byte.Source.ToFullRegister() == register) return true;
+            }
+            if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
+            {
+                if (movsx_Register_SymbolOffset.Destination == register) return false;
+            }
+            if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+            {
+
             }
 
             return IsReferenced(instructions, index + 1, register, exploredLabels);
@@ -1807,6 +1976,30 @@ namespace PlatinumC.Optimizer
 
             }
             if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
+            {
+
+            }
+            if (instruction is Push_SymbolOffset push_SymbolOffset)
+            {
+
+            }
+            if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            {
+
+            }
+            if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            {
+
+            }
+            if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            {
+
+            }
+            if (instruction is Movsx_Register_SymbolOffset movsx_Register_SymbolOffset)
+            {
+
+            }
+            if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
             {
 
             }

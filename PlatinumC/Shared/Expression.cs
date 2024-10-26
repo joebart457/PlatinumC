@@ -331,6 +331,18 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class LiteralNullPointer : Expression
+    {
+        public LiteralNullPointer(IToken token) : base(token)
+        {
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
+
     public class LiteralInteger : Expression
     {
         public int Value { get; set; }

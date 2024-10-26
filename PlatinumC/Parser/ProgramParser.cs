@@ -124,6 +124,7 @@ namespace PlatinumC.Parser
         {
             if (AdvanceIfMatch(TokenTypes.Library)) return ParseImportLibraryDeclaration();
             if (AdvanceIfMatch(TokenTypes.Import)) return ParseImportedFunctionDeclaration();
+            if (AdvanceIfMatch(TokenTypes.Global)) return ParseGlobalVariableDeclaration();
             return ParseFunctionDeclaration();
         }
 
@@ -180,6 +181,7 @@ namespace PlatinumC.Parser
             IToken? exportAlias = null;
             if (AdvanceIfMatch(TokenTypes.Export))
             {
+                Consume(TokenTypes.As, "expect export as 'alias'");
                 isExport = true;
                 exportAlias = Consume(BuiltinTokenTypes.String, "expect export alias");
             }
@@ -205,6 +207,19 @@ namespace PlatinumC.Parser
             var body = ParseBlock();
 
             return new FunctionDeclaration(token, returnType, functionIdentifier, parameterList, body.Statements, isExport, exportAlias ?? functionIdentifier, callingConvention);
+        }
+
+        public GlobalVariableDeclaration ParseGlobalVariableDeclaration()
+        {
+
+            // global int _hheap = 0;
+            var typeSymbol = ParseTypeSymbol();
+            var token = Previous();
+            var identifier = Consume(BuiltinTokenTypes.Word, "expect identifier symbol");
+            Consume(TokenTypes.Equal, "expect initializer value in variable declaration");
+            var initializerValue = ParseExpression();
+            Consume(TokenTypes.SemiColon, "expect ; after statement");
+            return new GlobalVariableDeclaration(token, typeSymbol, identifier, initializerValue);
         }
 
 
@@ -412,6 +427,7 @@ namespace PlatinumC.Parser
             if (AdvanceIfMatch(BuiltinTokenTypes.Integer)) return new LiteralInteger(Previous(), int.Parse(Previous().Lexeme));
             if (AdvanceIfMatch(BuiltinTokenTypes.Byte)) return new LiteralByte(Previous(), byte.Parse(Previous().Lexeme));
             if (AdvanceIfMatch(BuiltinTokenTypes.Float)) return new LiteralFloatingPoint(Previous(), float.Parse(Previous().Lexeme));
+            if (AdvanceIfMatch(TokenTypes.Nullptr)) return new LiteralNullPointer(Previous());
             if (AdvanceIfMatch(TokenTypes.Minus))
             {
                 if (AdvanceIfMatch(BuiltinTokenTypes.Integer)) return new LiteralInteger(Previous(), -int.Parse(Previous().Lexeme));

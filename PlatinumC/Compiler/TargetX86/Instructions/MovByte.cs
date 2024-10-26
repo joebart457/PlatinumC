@@ -54,6 +54,22 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
+    public class Movsx_Register_SymbolOffset__Byte : X86Instruction
+    {
+        public X86Register Destination { get; set; }
+        public SymbolOffset_Byte Source { get; set; }
+        public Movsx_Register_SymbolOffset__Byte(X86Register destination, SymbolOffset_Byte source)
+        {
+            Destination = destination;
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"movsx {Destination}, {Source}";
+        }
+    }
+
     public class Movzx : X86Instruction
     {
         public X86Register Destination { get; set; }

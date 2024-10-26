@@ -35,12 +35,27 @@ namespace PlatinumC.CodeGenerator.Fasm
             sb.AppendLine("section '.data' data readable writeable".Indent(0));
             foreach(var stringData in data.StaticStringData)
             {
-                sb.AppendLine(stringData.Emit(1));
+                sb.AppendLine(stringData.Emit(1, data.CompilationOptions));
             }
 
             foreach (var floatingPointData in data.StaticFloatingPointData)
             {
-                sb.AppendLine(floatingPointData.Emit(1));
+                sb.AppendLine(floatingPointData.Emit(1, data.CompilationOptions));
+            }
+
+            foreach (var integerData in data.StaticIntegerData)
+            {
+                sb.AppendLine(integerData.Emit(1, data.CompilationOptions));
+            }
+
+            foreach (var byteData in data.StaticByteData)
+            {
+                sb.AppendLine(byteData.Emit(1, data.CompilationOptions));
+            }
+
+            foreach (var pointerData in data.StaticPointerData)
+            {
+                sb.AppendLine(pointerData.Emit(1, data.CompilationOptions));
             }
 
             // Output User Functions
@@ -55,35 +70,47 @@ namespace PlatinumC.CodeGenerator.Fasm
             int libCounter = 0;
             foreach(var importLibrary in data.ImportLibraries)
             {
-                sb.AppendLine($"dd 0,0,0,RVA !lib_{libCounter}_name, RVA !lib_{libCounter}_table".Indent(1));
+                sb.AppendLine($"dd !lib_{libCounter}_ilt,0,0,RVA !lib_{libCounter}_name, RVA !lib_{libCounter}_iat".Indent(1));
                 libCounter++;
             }
             sb.AppendLine($"dd 0,0,0,0,0".Indent(1));
             libCounter = 0;
             foreach (var importLibrary in data.ImportLibraries)
             {
-                sb.AppendLine($"!lib_{libCounter}_table:".Indent(1));
-                foreach(var importedFunction in importLibrary.ImportedFunctions)
+                sb.AppendLine($"!lib_{libCounter}_name db '{importLibrary.LibraryPath.Lexeme}',0".Indent(1));
+                sb.AppendLine("rb RVA $ and 1".Indent(1));
+                libCounter++;
+            }
+
+            libCounter = 0;
+            foreach (var importLibrary in data.ImportLibraries)
+            {
+                sb.AppendLine("rb(-rva $) and 3".Indent(1));
+
+                sb.AppendLine($"!lib_{libCounter}_ilt:".Indent(1));
+                foreach (var importedFunction in importLibrary.ImportedFunctions)
+                {
+                    sb.AppendLine($"dd RVA !{importedFunction.FunctionIdentifier.Lexeme}".Indent(1));
+                }
+                sb.AppendLine($"dd 0".Indent(1));
+
+                sb.AppendLine($"!lib_{libCounter}_iat:".Indent(1));
+                foreach (var importedFunction in importLibrary.ImportedFunctions)
                 {
                     sb.AppendLine($"{importedFunction.FunctionIdentifier.Lexeme} dd RVA !{importedFunction.FunctionIdentifier.Lexeme}".Indent(1));
                 }
                 sb.AppendLine($"dd 0".Indent(1));
-                libCounter++;
-            }
-            libCounter = 0;
-            foreach (var importLibrary in data.ImportLibraries)
-            {
-                sb.AppendLine($"!lib_{libCounter}_name db '{importLibrary.LibraryPath.Lexeme}',0".Indent(1));
+
+                foreach (var importedFunction in importLibrary.ImportedFunctions)
+                {
+                    sb.AppendLine($"!{importedFunction.FunctionIdentifier.Lexeme} dw 0".Indent(1));
+                    sb.AppendLine($"db '{importedFunction.Symbol.Lexeme}',0".Indent(1));
+                    if (importedFunction != importLibrary.ImportedFunctions.Last()) sb.AppendLine("rb RVA $ and 1".Indent(1));
+                }
+
                 libCounter++;
             }
 
-            foreach (var importLibrary in data.ImportLibraries)
-            {
-                foreach (var importedFunction in importLibrary.ImportedFunctions)
-                {
-                    sb.AppendLine($"!{importedFunction.FunctionIdentifier.Lexeme} db 0,0,'{importedFunction.Symbol.Lexeme}',0".Indent(1));
-                }
-            }
 
 
             // Output exported user functions
@@ -119,9 +146,14 @@ namespace PlatinumC.CodeGenerator.Fasm
                 sb.AppendLine($"!lib_name db '{Path.GetFileName(data.CompilationOptions.OutputPath)}',0".Indent(1));
                 foreach (var exportedFunction in data.ExportedFunctions)
                 {
-                    sb.AppendLine($"!exported_{exportedNamesCounter} db '{exportedFunction.exportedSymbol}',0".Indent(2));
+                    sb.AppendLine($"!exported_{exportedNamesCounter} db '{exportedFunction.exportedSymbol}',0".Indent(1));
                     exportedNamesCounter++;
                 }
+
+                sb.AppendLine("section '.reloc' fixups data readable discardable");
+                sb.AppendLine("if $= $$".Indent(1));
+                sb.AppendLine($"dd 0,8 {(data.CompilationOptions.SourceComments? "; if there are no fixups, generate dummy entry" : "")}".Indent(2));
+                sb.AppendLine("end if".Indent(1));
 
             }
 

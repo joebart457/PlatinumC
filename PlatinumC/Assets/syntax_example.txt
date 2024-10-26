@@ -9,20 +9,24 @@ import msvcrt cdecl void printf(string msg);
 import msvcrt cdecl void printf_num(string msg, int num) from 'printf';
 import msvcrt cdecl void printf_float(string msg, float num1, int num) from 'printf';
 
+global int TestGlobal = 0;
+
 void Main(){
 	ptr hConsole = GetStdHandle(-11);
 	WriteFile(hConsole, "Hello, world!", 12, 0, 0);
 	int w = 9;
 	int x = 5;
 	if (x - 5 == 0){
-		WriteFile(hConsole, "This should print", 19, 0, 0);
+		WriteFile(hConsole, "This should print", 17, 0, 0);
 	}else {
-		WriteFile(hConsole, "This should not print", 23, 0, 0);
+		WriteFile(hConsole, "This should not print", 21, 0, 0);
 		w = 10;
 	}
 	int* y = &x;
 	*y = 98;
-	printf_num("x is %d (should be 98)", *y);
+	printf_num("\nx is %d (should be 98)", *y);
+	TestGlobal = *y;
+	printf_num("global is %d (should be 98)", x);
 	
 	int counter = 0;
 	while(counter < 5){

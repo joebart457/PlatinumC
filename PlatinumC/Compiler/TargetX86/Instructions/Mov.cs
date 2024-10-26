@@ -85,4 +85,52 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
             return $"mov {Destination}, {Immediate}";
         }
     }
+
+    public class Mov_SymbolOffset_Register : X86Instruction
+    {
+        public SymbolOffset Destination { get; set; }
+        public X86Register Source { get; set; }
+        public Mov_SymbolOffset_Register(SymbolOffset destination, X86Register source)
+        {
+            Destination = destination;
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"mov {Destination}, {Source}";
+        }
+    }
+
+    public class Mov_SymbolOffset_Immediate : X86Instruction
+    {
+        public SymbolOffset Destination { get; set; }
+        public int ImmediateValue { get; set; }
+        public Mov_SymbolOffset_Immediate(SymbolOffset destination, int immediateValue)
+        {
+            Destination = destination;
+            ImmediateValue = immediateValue;
+        }
+
+        public override string Emit()
+        {
+            return $"mov {Destination}, {ImmediateValue}";
+        }
+    }
+
+    public class Mov_SymbolOffset_Register__Byte : X86Instruction
+    {
+        public SymbolOffset Destination { get; set; }
+        public X86ByteRegister Source { get; set; }
+        public Mov_SymbolOffset_Register__Byte(SymbolOffset destination, X86ByteRegister source)
+        {
+            Destination = destination;
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"mov {Destination}, {Source}";
+        }
+    } 
 }

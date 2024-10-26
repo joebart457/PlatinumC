@@ -803,6 +803,35 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class TypedGlobalAssignment : TypedExpression
+    {
+        public IToken AssignmentTarget { get; set; }
+        public TypedExpression ValueToAssign { get; set; }
+        public TypedGlobalAssignment(Expression originalExpression, ResolvedType resolvedType, IToken assignmentTarget, TypedExpression valueToAssign) : base(originalExpression, resolvedType)
+        {
+            AssignmentTarget = assignmentTarget;
+            ValueToAssign = valueToAssign;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            var offset = context.GetGlobalOffset(AssignmentTarget);
+            ValueToAssign.Visit(context);
+            if (ResolvedType.Is(SupportedType.Byte))
+            {
+                // leave value on the stack instead of popping, then re-pushing
+                context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0)));
+                context.AddInstruction(X86Instructions.Mov(offset, X86ByteRegister.al));
+            }else
+            {
+                // leave value on the stack instead of popping, then re-pushing
+                context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0)));
+                context.AddInstruction(X86Instructions.Mov(offset, X86Register.eax));
+            }
+            
+        }
+    }
+
     public class TypedDereferenceAssignment : TypedExpression
     {
         public TypedDereference AssignmentTarget { get; set; }
@@ -823,7 +852,6 @@ namespace PlatinumC.Shared
             if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0), X86ByteRegister.bl));
             else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0), X86Register.ebx));
             context.AddInstruction(X86Instructions.Push(X86Register.ebx));
-
         }
     }
 
@@ -869,6 +897,27 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class TypedGlobalIdentifier : TypedExpression
+    {
+        public IToken Identifier { get; set; }
+        public TypedGlobalIdentifier(Expression originalExpression, ResolvedType resolvedType, IToken identifier) : base(originalExpression, resolvedType)
+        {
+            Identifier = identifier;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            var offset = context.GetGlobalOffset(Identifier);
+            // Bytes are NOT stored as dwords globally, so they need special handling
+            if (ResolvedType.Is(SupportedType.Byte))
+            {
+                context.AddInstruction(X86Instructions.Movsx(X86Register.eax, Offset.CreateSymbolByteOffset(offset.Symbol, offset.Offset)));
+                context.AddInstruction(X86Instructions.Push(X86Register.eax));
+            }
+            else context.AddInstruction(X86Instructions.Push(offset));
+        }
+    }
+
 
     public class TypedReference : TypedExpression
     {
@@ -882,6 +931,23 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             var offset = context.GetIdentifierOffset(Identifier);
+            context.AddInstruction(X86Instructions.Lea(X86Register.eax, offset));
+            context.AddInstruction(X86Instructions.Push(X86Register.eax));
+        }
+    }
+
+    public class TypedGlobalReference : TypedExpression
+    {
+        public IToken Identifier { get; set; }
+        public TypedGlobalReference(Expression originalExpression, ResolvedType resolvedType, IToken identifier) : base(originalExpression, resolvedType)
+        {
+            Identifier = identifier;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            var offset = context.GetGlobalOffset(Identifier);
             context.AddInstruction(X86Instructions.Lea(X86Register.eax, offset));
             context.AddInstruction(X86Instructions.Push(X86Register.eax));
         }
@@ -919,6 +985,19 @@ namespace PlatinumC.Shared
         {
             var label = context.AddStringData(Value);
             context.AddInstruction(X86Instructions.Push(label, false));
+        }
+    }
+
+    public class TypedLiteralNullPointer : TypedExpression
+    {
+        public TypedLiteralNullPointer(Expression originalExpression, ResolvedType resolvedType)
+            : base(originalExpression, resolvedType)
+        {
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            context.AddInstruction(X86Instructions.Push(0));
         }
     }
 

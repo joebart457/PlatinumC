@@ -21,6 +21,7 @@ namespace PlatinumC.Compiler
         public OutputTarget OutputTarget { get; set; } = OutputTarget.Exe;
         public bool EnableOptimizations { get; set; } = false;
         public int OptimizationPasses { get; set; } = 3;
+        public bool SourceComments { get; set;} = false;
 
     }
 }

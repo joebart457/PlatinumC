@@ -8,6 +8,7 @@ namespace PlatinumC.Resolver
     public class TypeResolver
     {
         private Dictionary<string, ResolvedType> _localVariables { get; set; } = new();
+        private Dictionary<string, ResolvedType> _globalVariables { get; set;} = new();
         private Dictionary<string, TypedFunctionDeclaration> _functions { get; set; } = new();
         private Dictionary<string, TypedImportedFunctionDeclaration> _importedFunctions { get; set; } = new();
         private TypedFunctionDeclaration? _currentFunction;
@@ -19,6 +20,7 @@ namespace PlatinumC.Resolver
         public ResolverResult ResolveTypes(ParsingResult parsingResult)
         {
             _localVariables = new();
+            _globalVariables = new();
             _functions = new();
             _importedFunctions = new();
             _currentFunction = null;
@@ -91,8 +93,13 @@ namespace PlatinumC.Resolver
         internal TypedExpression Accept(Identifier identifier)
         {
             if (_localVariables.TryGetValue(identifier.Token.Lexeme, out var resolvedType)) return new TypedIdentifier(identifier, resolvedType, identifier.Token);
+        
             var foundVariable = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == identifier.Token.Lexeme);
-            if (foundVariable == null) throw new ParsingException(identifier.Token, $"identifier {identifier.Token.Lexeme} is not defined");
+            if (foundVariable == null)
+            {
+                if (_globalVariables.TryGetValue(identifier.Token.Lexeme, out var globalVariableType)) return new TypedGlobalIdentifier(identifier, globalVariableType, identifier.Token);
+                throw new ParsingException(identifier.Token, $"identifier {identifier.Token.Lexeme} is not defined");
+            }
             return new TypedIdentifier(identifier, foundVariable.ResolvedType, identifier.Token);
         }
 
@@ -299,6 +306,11 @@ namespace PlatinumC.Resolver
             return new TypedLiteralString(literalString, new ResolvedType(SupportedType.Ptr, ResolvedType.Create(SupportedType.Byte)), literalString.Value);
         }
 
+        internal TypedExpression Accept(LiteralNullPointer literalNullPointer)
+        {
+            return new TypedLiteralNullPointer(literalNullPointer, new ResolvedType(SupportedType.Ptr, ResolvedType.Create(SupportedType.Void)));
+        }
+
         internal TypedExpression Accept(LiteralInteger literalInteger)
         {
             return new TypedLiteralInteger(literalInteger, ResolvedType.Create(SupportedType.Int), literalInteger.Value);
@@ -483,17 +495,24 @@ namespace PlatinumC.Resolver
         {
             if (assignment.Instance != null) throw new NotImplementedException();
             var valueToAssign = assignment.ValueToAssign.Visit(this);
-            var foundParameter = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == assignment.AssignmentTarget.Lexeme);
-            if (foundParameter != null)
+            if(_localVariables.TryGetValue(assignment.AssignmentTarget.Lexeme, out var resolvedType))
             {
-                if (!foundParameter.ResolvedType.Is(valueToAssign.ResolvedType))
-                    throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {foundParameter.ResolvedType}");
-                return new TypedAssignment(assignment, foundParameter.ResolvedType, assignment.AssignmentTarget, valueToAssign);
+                if (!resolvedType.Is(valueToAssign.ResolvedType))
+                    throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {resolvedType}");
+                return new TypedAssignment(assignment, resolvedType, assignment.AssignmentTarget, valueToAssign);
             }
-            if (!_localVariables.TryGetValue(assignment.AssignmentTarget.Lexeme, out var variable))
-                throw new ParsingException(assignment.AssignmentTarget, $"symbol {assignment.AssignmentTarget.Lexeme} is not defined");
-            return new TypedAssignment(assignment, variable, assignment.AssignmentTarget, valueToAssign);
-                
+            var foundParameter = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == assignment.AssignmentTarget.Lexeme);
+            if (foundParameter == null)
+            {
+                if (_globalVariables.TryGetValue(assignment.AssignmentTarget.Lexeme, out var globalVariableType))
+                {
+                    if (!globalVariableType.Is(valueToAssign.ResolvedType))
+                        throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {resolvedType}");
+                    return new TypedGlobalAssignment(assignment, globalVariableType, assignment.AssignmentTarget, valueToAssign);
+                }
+                throw new ParsingException(assignment.AssignmentTarget, $"identifier {assignment.AssignmentTarget.Lexeme} is not defined");
+            }
+            return new TypedAssignment(assignment, foundParameter.ResolvedType, assignment.AssignmentTarget, valueToAssign);
         }
 
         internal TypedStatement Accept(ExpressionStatement expressionStatement)
@@ -504,14 +523,15 @@ namespace PlatinumC.Resolver
 
         internal TypedExpression Accept(Reference reference)
         {
+            if (_localVariables.TryGetValue(reference.Token.Lexeme, out var resolvedType)) return new Shared.TypedReference(reference, ResolvedType.Create(SupportedType.Ptr, resolvedType), reference.Token);
+
             var foundParameter = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == reference.Token.Lexeme);
-            if (foundParameter != null)
+            if (foundParameter == null)
             {
-                return new Shared.TypedReference(reference, ResolvedType.Create(SupportedType.Ptr, foundParameter.ResolvedType), reference.Token);
+                if (_globalVariables.TryGetValue(reference.Token.Lexeme, out var globalVariableType)) return new TypedGlobalReference(reference, globalVariableType, reference.Token);
+                throw new ParsingException(reference.Token, $"identifier {reference.Token.Lexeme} is not defined");
             }
-            if (!_localVariables.TryGetValue(reference.Token.Lexeme, out var variable))
-                throw new ParsingException(reference.Token, $"symbol {reference.Token.Lexeme} is not defined");
-            return new Shared.TypedReference(reference, ResolvedType.Create(SupportedType.Ptr, variable), reference.Token);
+            return new Shared.TypedReference(reference, ResolvedType.Create(SupportedType.Ptr, foundParameter.ResolvedType), reference.Token);
         }
 
         internal TypedExpression Accept(Dereference dereference)
@@ -558,6 +578,39 @@ namespace PlatinumC.Resolver
             if (rhs.ResolvedType.Is(SupportedType.Byte)) return new TypedUnary_Negation_Integer(unaryNot, ResolvedType.Create(SupportedType.Byte), rhs);
 
             throw new ParsingException(unaryNot.Token, $"unable to perform bitwise negation on type {rhs.ResolvedType}");
+        }
+
+        internal TypedDeclaration Accept(GlobalVariableDeclaration globalVariableDeclaration)
+        {
+            if (_currentFunction != null) throw new ParsingException(globalVariableDeclaration.Token, "cannot declare global variable inside of function");
+            var variableType = Resolve(globalVariableDeclaration.TypeSymbol);
+            var initializer = globalVariableDeclaration.Initializer.Visit(this);
+            if (_globalVariables.ContainsKey(globalVariableDeclaration.Identifier.Lexeme))
+                throw new ParsingException(globalVariableDeclaration.Identifier, $"global identifier {globalVariableDeclaration.Identifier} is already defined");
+            _globalVariables[globalVariableDeclaration.Identifier.Lexeme] = variableType;
+            if (!variableType.Is(initializer.ResolvedType))
+                throw new ParsingException(globalVariableDeclaration.Identifier, $"initializer of type {initializer.ResolvedType} cannot be converted to type {variableType}");
+
+            if (initializer is TypedLiteralFloatingPoint typedLiteralFloatingPoint)
+                return new TypedGlobalVariableDeclaration_Float(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier, typedLiteralFloatingPoint.Value);
+            if (initializer is TypedLiteralInteger typedLiteralInteger)
+                return new TypedGlobalVariableDeclaration_Integer(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier, typedLiteralInteger.Value);
+            if (initializer is TypedLiteralByte typedLiteralByte)
+                return new TypedGlobalVariableDeclaration_Byte(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier, typedLiteralByte.Value);
+            if (initializer is TypedLiteralString typedLiteralString)
+                return new TypedGlobalVariableDeclaration_String(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier, typedLiteralString.Value);
+            if (initializer is TypedLiteralNullPointer typedLiteralNullPointer)
+                return new TypedGlobalVariableDeclaration_NullPointer(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier);
+            if (initializer is TypedCast_Pointer_From_Pointer typedCast_Pointer_From_Pointer)
+            {
+                if (initializer is TypedLiteralNullPointer typedLiteralNullPointer1)
+                {
+                    if (!typedCast_Pointer_From_Pointer.ResolvedType.Is(variableType))
+                        throw new ParsingException(globalVariableDeclaration.Identifier, $"unable to assign type {typedCast_Pointer_From_Pointer.ResolvedType} to type {variableType}");
+                    return new TypedGlobalVariableDeclaration_NullPointer(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier);
+                }
+            }
+            throw new ParsingException(globalVariableDeclaration.Identifier, "global variables must have a compile-time constant initializer");
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using static PlatinumC.Compiler.TargetX86.Instructions.Mov_SymbolOffset_Register;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Net.WebRequestMethods;
 
@@ -17,8 +18,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Push_Offset Push(RegisterOffset offset) => new Push_Offset(offset);
         public static Push_Address Push(string address, bool isIndirect) => new Push_Address(address, isIndirect);
         public static Push_Immediate<int> Push(int immediateValue) => new Push_Immediate<int>(immediateValue);
+        public static Push_SymbolOffset Push(SymbolOffset offset) => new Push_SymbolOffset(offset);
 
         public static Lea_Register_Offset Lea(X86Register destination, RegisterOffset source) => new Lea_Register_Offset(destination, source);
+        public static Lea_Register_SymbolOffset Lea(X86Register destination, SymbolOffset source) => new Lea_Register_SymbolOffset(destination, source);
 
         public static Mov_Register_Offset Mov(X86Register destination, RegisterOffset source) => new Mov_Register_Offset(destination, source);
         public static Mov_Offset_Register Mov(RegisterOffset destination, X86Register source) => new Mov_Offset_Register(destination, source);
@@ -26,8 +29,14 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Mov_Register_Register Mov(X86Register destination, X86Register source) => new Mov_Register_Register(destination, source);
         public static Mov_Register_Immediate Mov(X86Register destination, int immediate) => new Mov_Register_Immediate(destination, immediate);
 
+        public static Mov_SymbolOffset_Register Mov(SymbolOffset destination, X86Register source) => new Mov_SymbolOffset_Register(destination, source);
+        public static Mov_SymbolOffset_Register__Byte Mov(SymbolOffset destination, X86ByteRegister source) => new Mov_SymbolOffset_Register__Byte(destination, source);
+        public static Mov_SymbolOffset_Immediate Mov(SymbolOffset destination, int immediateValue) => new Mov_SymbolOffset_Immediate(destination, immediateValue);
+
         public static Mov_Offset_Register__Byte Mov(RegisterOffset destination, X86ByteRegister source) => new Mov_Offset_Register__Byte(destination, source);
         public static Movsx_Register_Offset Movsx(X86Register destination, RegisterOffset_Byte source) => new Movsx_Register_Offset(destination, source);
+        public static Movsx_Register_SymbolOffset__Byte Movsx(X86Register destination, SymbolOffset_Byte source) => new Movsx_Register_SymbolOffset__Byte(destination, source);
+
         public static Sub_Register_Immediate Sub(X86Register destination, int valueToSubtract) => new Sub_Register_Immediate(destination, valueToSubtract);
         public static Sub_Register_Register Sub(X86Register destination, X86Register source) => new Sub_Register_Register(destination, source);
 

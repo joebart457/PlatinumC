@@ -1,0 +1,30 @@
+library kernel32 'kernel32.dll'
+import kernel32 stdcall ptr GetStdHandle(int identifier);
+import kernel32 stdcall void WriteFile(ptr hConsole, string msg, int sizeOfMessage, int bytesWritten, int reserved);
+import kernel32 stdcall void ExitProcess(int exitCode);
+
+library exampleExport 'export_example.dll'
+import exampleExport cdecl int CExportedFunction2(int times) from 'CExportedFunction2';
+import exampleExport cdecl int CExportedFunction(int times) from 'CExportedFunction';
+
+import exampleExport stdcall int MyPersonalExportedFn(int times) from 'MyExportedFunction';
+
+// --- alternatively ---
+//import exampleExport stdcall int MyExportedFunction(int times);
+// --- imported cdecl function
+
+global int TestGlobal = 0;
+
+void Main(){	
+	ptr hConsole = GetStdHandle(-11);
+	WriteFile(hConsole, "Testing: MyPersonalExportedFn\n", 30, 0, 0);
+	MyPersonalExportedFn(5);
+	WriteFile(hConsole, "\nTesting: MyExportedFunction\n", 29, 0, 0);
+	//MyExportedFunction(3);
+	WriteFile(hConsole, "\nTesting: CExportedFunction\n", 28, 0, 0);
+	CExportedFunction(2);
+	WriteFile(hConsole, "\nTesting: CExportedFunction2\n", 28, 0, 0);
+	CExportedFunction2(2);
+	ExitProcess(TestGlobal);
+}
+

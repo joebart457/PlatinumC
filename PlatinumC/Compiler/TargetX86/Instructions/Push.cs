@@ -35,6 +35,20 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
+    public class Push_SymbolOffset : X86Instruction
+    {
+        public SymbolOffset Offset { get; set; }
+        public Push_SymbolOffset(SymbolOffset offset)
+        {
+            Offset = offset;
+        }
+
+        public override string Emit()
+        {
+            return $"push {Offset}";
+        }
+    }
+
     public class Push_Address : X86Instruction
     {
         public string Address { get; set; }

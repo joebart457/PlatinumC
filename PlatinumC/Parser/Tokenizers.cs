@@ -49,6 +49,9 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.UpCarat, "^"),
                     new TokenizerRule(TokenTypes.Not, "!"),
                     new TokenizerRule(TokenTypes.BitwiseNot, "~"),
+                    new TokenizerRule(TokenTypes.Nullptr, "nullptr"),
+                    new TokenizerRule(TokenTypes.Global, "global"),
+                    new TokenizerRule(TokenTypes.As, "as"),
 
                     new TokenizerRule(TokenTypes.CallingConvention, CallingConvention.Cdecl.ToString(), ignoreCase: true),
                     new TokenizerRule(TokenTypes.CallingConvention, CallingConvention.StdCall.ToString(), ignoreCase: true),

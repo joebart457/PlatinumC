@@ -1,0 +1,43 @@
+
+library msvcrt 'msvcrt.dll'
+import msvcrt cdecl void printf(string msg);
+
+int DllEntryPoint(){
+	return 1;
+}
+
+
+
+
+
+export as 'CExportedFunction2'
+cdecl int cExportedFn2(int timesToPrint) {
+	int counter = 0;
+	while (counter < timesToPrint){
+		printf("Hello in c style 2!");
+		counter = counter + 1;
+	}
+	return timesToPrint;
+}
+
+
+export as 'CExportedFunction'
+cdecl int cExportedFn(int timesToPrint) {
+	int counter = 0;
+	while (counter < timesToPrint){
+		printf("Hello in c style!");
+		counter = counter + 1;
+	}
+	return timesToPrint;
+}
+
+
+export as 'MyExportedFunction'
+int ExportedFn(int timesToPrint) {
+	int counter = 0;
+	while (counter < timesToPrint){
+		printf("Hello!");
+		counter = counter + 1;
+	}
+	return timesToPrint;
+}

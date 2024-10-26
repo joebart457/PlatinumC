@@ -15,19 +15,18 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
     {
         public static RegisterOffset Create(X86Register register, int offset) => new RegisterOffset(register, offset);
         public static RegisterOffset_Byte CreateByteOffset(X86Register register, int offset) => new RegisterOffset_Byte(register, offset);
+        public static SymbolOffset CreateSymbolOffset(string symbol, int offset) => new SymbolOffset(symbol, offset);
+        public static SymbolOffset_Byte CreateSymbolByteOffset(string symbol, int offset) => new SymbolOffset_Byte(symbol, offset);
     }
     public class RegisterOffset
     {
         public X86Register Register { get; set; }
         public int Offset { get; set; }
-        public bool IsIndirect { get; set; }
         public RegisterOffset(X86Register register, int offset)
         {
             Register = register;
             Offset = offset;
         }
-
-        public bool IsPlainRegister => Offset == 0 && !IsIndirect;
 
         public override string ToString()
         {
@@ -47,6 +46,68 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public override int GetHashCode()
         {
             return Register.GetHashCode();
+        }
+    }
+
+    public class SymbolOffset
+    {
+        public string Symbol { get; set; }
+        public int Offset { get; set; }
+        public SymbolOffset(string symbol, int offset)
+        {
+            Symbol = symbol;
+            Offset = offset;
+        }
+
+        public override string ToString()
+        {
+            var repr = Offset == 0 ? Symbol : $"{Symbol} {(Offset > 0 ? "+" : "-")} {Math.Abs(Offset)}";
+            return $"dword [{repr}]";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is SymbolOffset offset)
+            {
+                return Offset == offset.Offset && Symbol == offset.Symbol;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return Symbol.GetHashCode();
+        }
+    }
+
+    public class SymbolOffset_Byte
+    {
+        public string Symbol { get; set; }
+        public int Offset { get; set; }
+        public SymbolOffset_Byte(string symbol, int offset)
+        {
+            Symbol = symbol;
+            Offset = offset;
+        }
+
+        public override string ToString()
+        {
+            var repr = Offset == 0 ? Symbol : $"{Symbol} {(Offset > 0 ? "+" : "-")} {Math.Abs(Offset)}";
+            return $"byte [{repr}]";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is SymbolOffset offset)
+            {
+                return Offset == offset.Offset && Symbol == offset.Symbol;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return Symbol.GetHashCode();
         }
     }
 
