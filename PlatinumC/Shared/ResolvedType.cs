@@ -31,7 +31,7 @@ namespace PlatinumC.Shared
         public bool IsPointer => SupportedType == SupportedType.Ptr;
         public bool Is(SupportedType supportedType)
         {
-            return SupportedType == supportedType;
+            return SupportedType == supportedType && UnderlyingType == null;
         }
 
         public bool Is(ResolvedType? resolvedType)

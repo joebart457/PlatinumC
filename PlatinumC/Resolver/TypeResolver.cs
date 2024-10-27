@@ -154,7 +154,7 @@ namespace PlatinumC.Resolver
                 if (!rhs.ResolvedType.Is(SupportedType.Float)) throw new ParsingException(binaryAddition.Token, $"right hand side of floating point addition must also be floating point");
                 return new TypedBinaryAddition_Float_Float(binaryAddition, ResolvedType.Create(SupportedType.Float), lhs, rhs);
             }
-            else if (lhs.ResolvedType.Is(SupportedType.Ptr))
+            else if (lhs.ResolvedType.IsPointer)
             {
                 if (!rhs.ResolvedType.Is(SupportedType.Int)) throw new ParsingException(binaryAddition.Token, $"right hand side of pointer addition must be an integer");
                 return new TypedBinaryAddition_Pointer_Integer(binaryAddition, lhs.ResolvedType, lhs, rhs);
@@ -177,7 +177,7 @@ namespace PlatinumC.Resolver
                 if (!rhs.ResolvedType.Is(SupportedType.Float)) throw new ParsingException(binarySubtraction.Token, $"right hand side of floating point subtraction must also be floating point");
                 return new TypedBinarySubtraction_Float_Float(binarySubtraction, ResolvedType.Create(SupportedType.Float), lhs, rhs);
             }
-            else if (lhs.ResolvedType.Is(SupportedType.Ptr))
+            else if (lhs.ResolvedType.IsPointer)
             {
                 if (!rhs.ResolvedType.Is(SupportedType.Int)) throw new ParsingException(binarySubtraction.Token, $"right hand side of pointer subtraction must be an integer");
                 return new TypedBinarySubtraction_Pointer_Integer(binarySubtraction, lhs.ResolvedType, lhs, rhs);
@@ -225,7 +225,7 @@ namespace PlatinumC.Resolver
             var rhs = binaryComparison.Rhs.Visit(this);
             if (lhs.ResolvedType.Is(SupportedType.Int))
             {
-                if (!(rhs.ResolvedType.Is(SupportedType.Int) || rhs.ResolvedType.Is(SupportedType.Ptr))) throw new ParsingException(binaryComparison.Token, $"right hand side of integer comparison must be another integer or a pointer");
+                if (!(rhs.ResolvedType.Is(SupportedType.Int) || rhs.ResolvedType.IsPointer)) throw new ParsingException(binaryComparison.Token, $"right hand side of integer comparison must be another integer or a pointer");
                 return new TypedBinaryComparison_Integer_Integer(binaryComparison, ResolvedType.Create(SupportedType.Int), lhs, rhs, binaryComparison.ComparisonType);
             }
             else if (lhs.ResolvedType.Is(SupportedType.Float))
@@ -233,7 +233,7 @@ namespace PlatinumC.Resolver
                 if (!rhs.ResolvedType.Is(SupportedType.Float)) throw new ParsingException(binaryComparison.Token, $"right hand side of floating point addition must also be floating point");
                 return new TypedBinaryComparison_Float_Float(binaryComparison, ResolvedType.Create(SupportedType.Int), lhs, rhs, binaryComparison.ComparisonType);
             }
-            else if (lhs.ResolvedType.Is(SupportedType.Ptr))
+            else if (lhs.ResolvedType.IsPointer)
             {
                 if (!(rhs.ResolvedType.Is(SupportedType.Int) || rhs.ResolvedType.Is(lhs.ResolvedType))) throw new ParsingException(binaryComparison.Token, $"right hand side of pointer comparison must be an integer or another pointer");
                 return new TypedBinaryComparison_Integer_Integer(binaryComparison, ResolvedType.Create(SupportedType.Int), lhs, rhs, binaryComparison.ComparisonType);
