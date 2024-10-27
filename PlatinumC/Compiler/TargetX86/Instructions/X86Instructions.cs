@@ -51,8 +51,11 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
 
         public static Pop_Register Pop(X86Register destination) => new Pop_Register(destination);
 
-        public static Neg_Offset Neg(RegisterOffset divisor) => new Neg_Offset(divisor);
-        public static Not_Offset Not(RegisterOffset divisor) => new Not_Offset(divisor);
+        public static Neg_Offset Neg(RegisterOffset destination) => new Neg_Offset(destination);
+        public static Not_Offset Not(RegisterOffset destination) => new Not_Offset(destination);
+
+        public static Inc_Register Inc(X86Register destination) => new Inc_Register(destination);
+        public static Dec_Register Dec(X86Register destination) => new Dec_Register(destination);
 
         public static IDiv_Offset IDiv(RegisterOffset divisor) => new IDiv_Offset(divisor);
         public static IMul_Register_Register IMul(X86Register destination, X86Register source) => new IMul_Register_Register(destination, source);

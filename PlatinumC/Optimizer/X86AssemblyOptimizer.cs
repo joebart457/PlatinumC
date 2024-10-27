@@ -479,7 +479,14 @@ namespace PlatinumC.Optimizer
             {
                 SetMemory(mov_SymbolOffset_Immediate.Destination, RegisterOffsetOrImmediate.Create(mov_SymbolOffset_Immediate.ImmediateValue));
             }
-
+            if (instruction is Inc_Register inc_Register)
+            {
+                AddRegister(inc_Register.Destination, 1);
+            }
+            if (instruction is Dec_Register dec_Register)
+            {
+                SubtractRegister(dec_Register.Destination, 1);
+            }
             return instruction;
         }
 
@@ -498,6 +505,21 @@ namespace PlatinumC.Optimizer
                 return GetImmediateOrNull(result.RegisterOffset);
             }
             return null;
+        }
+
+        private bool TryGetRegister(RegisterOffset registerOffset, out X86Register result)
+        {
+            // Tests if any register already has the corresponding offset value stored in it
+            result = X86Register.eax;
+            foreach(var key in _registerValues.Keys)
+            {
+                if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Equals(registerOffset))
+                {
+                    result = key;
+                    return true;
+                }
+            }
+            return false;
         }
 
 
@@ -658,6 +680,20 @@ namespace PlatinumC.Optimizer
                             i++;
                             continue;
                         }
+
+                        if (Peek(fn.Instructions, i + 1) is Mov_Register_Offset mov_Register_Offset1 && mov_Register_Offset1.Source.Equals(TopOfStack))
+                        {
+                            // test for
+                            // push eax
+                            // mov ebx, [esp]
+                            // optimization:
+                            // push eax
+                            // mov ebx, eax
+                            optimizedInstructions.Add(TrackInstruction(instruction));
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Register_Offset1.Destination, push_Register.Register)));
+                            i++;
+                            continue;
+                        }
                     }
                     if (instruction is Push_Offset push_Offset)
                     {
@@ -718,6 +754,11 @@ namespace PlatinumC.Optimizer
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Register_Offset.Destination, immediate)));
                             continue;
                         }
+                        else if (TryGetRegister(mov_Register_Offset.Source, out var register))
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Register_Offset.Destination, register)));
+                            continue;
+                        }
                     }
                     if (instruction is Mov_Offset_Register mov_Offset_Register)
                     {
@@ -744,6 +785,21 @@ namespace PlatinumC.Optimizer
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Register_Register.Destination, immediate)));
                             continue;
+                        }
+                        if (Peek(fn.Instructions, i + 1) is Mov_Offset_Register mov_Offset_Register1 && mov_Offset_Register1.Source == mov_Register_Register.Destination)
+                        {
+                            if (!IsReferenced(fn.Instructions, i + 2, mov_Register_Register.Destination))
+                            {
+                                // test for
+                                // mov eax, ebx
+                                // mov [ebp-4], eax
+                                // optimization:
+                                // mov [ebp-4], ebx
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(mov_Offset_Register1.Destination, mov_Register_Register.Source)));
+                                i++;
+                                continue;
+                            }
+                            
                         }
                     }
                     if (instruction is Mov_Register_Immediate mov_Register_Immediate)
@@ -810,6 +866,11 @@ namespace PlatinumC.Optimizer
                             i++;
                             continue;
                         }
+                        if (sub_Register_Immediate.ValueToSubtract == 1)
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Dec(sub_Register_Immediate.Destination)));
+                            continue;
+                        }
 
                     }
                     if (instruction is Sub_Register_Register sub_Register_Register)
@@ -859,6 +920,11 @@ namespace PlatinumC.Optimizer
                             else if (finalValue < 0) optimizedInstructions.Add(TrackInstruction(X86Instructions.Sub(add_Register_Immediate.Destination, -finalValue)));
                             // else do nothing if the final value is 0
                             i++;
+                            continue;
+                        }
+                        if (add_Register_Immediate.ValueToAdd == 1)
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Inc(add_Register_Immediate.Destination)));
                             continue;
                         }
                     }
@@ -1218,6 +1284,14 @@ namespace PlatinumC.Optimizer
                     {
                         if (IsEquivalent(mov_SymbolOffset_Immediate.Destination, mov_SymbolOffset_Immediate.ImmediateValue)) continue;
                     }
+                    if (instruction is Inc_Register inc_Register)
+                    {
+
+                    }
+                    if (instruction is Dec_Register dec_Register)
+                    {
+
+                    }
 
                     optimizedInstructions.Add(TrackInstruction(instruction));
                 }
@@ -1501,6 +1575,32 @@ namespace PlatinumC.Optimizer
             {
 
             }
+            if (instruction is Inc_Register inc_Register)
+            {
+                if (inc_Register.Destination == offset.Register)
+                {
+                    //
+                    // [eax-4]
+                    // add eax, 1 //eax-5
+                    //
+                    // [eax+4]
+                    // add eax, 1 // eax+3
+                    offset = Offset.Create(offset.Register, offset.Offset - 1);
+                }
+            }
+            if (instruction is Dec_Register dec_Register)
+            {
+                if (dec_Register.Destination == offset.Register)
+                {
+                    //eax + 4
+                    // [eax-4]
+                    // sub eax, 1 //eax-3
+                    //
+                    // [eax+4]
+                    // sub eax, 1 // eax+5
+                    offset = Offset.Create(offset.Register, offset.Offset + 1);
+                }
+            }
 
             return IsReferenced(instructions, index + 1, originalOffset, offset, exploredLabels);
         }
@@ -1766,6 +1866,14 @@ namespace PlatinumC.Optimizer
             {
 
             }
+            if (instruction is Inc_Register inc_Register)
+            {
+                if (inc_Register.Destination == register) return true;
+            }
+            if (instruction is Dec_Register dec_Register)
+            {
+                if (dec_Register.Destination == register) return true;
+            }
 
             return IsReferenced(instructions, index + 1, register, exploredLabels);
         }
@@ -2002,6 +2110,14 @@ namespace PlatinumC.Optimizer
             if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
             {
 
+            }
+            if (instruction is Inc_Register inc_Register)
+            {
+                
+            }
+            if (instruction is Dec_Register dec_Register)
+            {
+                
             }
  * 
  * 
