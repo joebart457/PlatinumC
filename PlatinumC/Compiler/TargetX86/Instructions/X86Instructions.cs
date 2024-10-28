@@ -56,6 +56,8 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
 
         public static Inc_Register Inc(X86Register destination) => new Inc_Register(destination);
         public static Dec_Register Dec(X86Register destination) => new Dec_Register(destination);
+        public static Inc_Offset Inc(RegisterOffset destination) => new Inc_Offset(destination);
+        public static Dec_Offset Dec(RegisterOffset destination) => new Dec_Offset(destination);
 
         public static IDiv_Offset IDiv(RegisterOffset divisor) => new IDiv_Offset(divisor);
         public static IMul_Register_Register IMul(X86Register destination, X86Register source) => new IMul_Register_Register(destination, source);

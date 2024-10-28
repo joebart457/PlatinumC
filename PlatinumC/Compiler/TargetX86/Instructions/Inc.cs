@@ -34,4 +34,34 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
             return $"dec {Destination}";
         }
     }
+
+    public class Inc_Offset : X86Instruction
+    {
+        public RegisterOffset Destination { get; set; }
+
+        public Inc_Offset(RegisterOffset destination)
+        {
+            Destination = destination;
+        }
+
+        public override string Emit()
+        {
+            return $"inc {Destination}";
+        }
+    }
+
+    public class Dec_Offset : X86Instruction
+    {
+        public RegisterOffset Destination { get; set; }
+
+        public Dec_Offset(RegisterOffset destination)
+        {
+            Destination = destination;
+        }
+
+        public override string Emit()
+        {
+            return $"dec {Destination}";
+        }
+    }
 }

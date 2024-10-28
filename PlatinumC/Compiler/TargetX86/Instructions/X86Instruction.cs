@@ -9,6 +9,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
     public abstract class X86Instruction
     {
         public abstract string Emit();
+        public override string ToString()
+        {
+            return Emit();
+        }
     }
 
     public class Offset
