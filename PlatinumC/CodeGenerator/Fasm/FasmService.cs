@@ -16,6 +16,7 @@ namespace PlatinumC.CodeGenerator.Fasm
 
         public static string? RunFasm(CompilationOptions options)
         {
+            FasmDllService.RunFasm(options);
             var assemblyFile = options.AssemblyPath;
             var outputFile = options.OutputPath;
 

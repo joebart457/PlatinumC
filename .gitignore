@@ -26,6 +26,8 @@
 !*/Assemblers/**/
 !*/Assemblers/**/*.exe
 !*/Assemblers/*.dll
+# Include binaries included in solution items
+!*.dll
 ####################
 # VS Upgrade stuff #
 ####################

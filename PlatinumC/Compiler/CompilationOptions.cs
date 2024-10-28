@@ -22,6 +22,14 @@ namespace PlatinumC.Compiler
         public bool EnableOptimizations { get; set; } = false;
         public int OptimizationPasses { get; set; } = 3;
         public bool SourceComments { get; set;} = false;
+        public AssemblerOptions AssemblerOptions { get; set; } = new();
 
+    }
+
+    public class AssemblerOptions
+    {
+        public bool EnableInMemoryAssembly { get; set; }
+        public int MemorySize { get; set; } = 100000;
+        public int PassesLimit { get; set; } = 100;
     }
 }

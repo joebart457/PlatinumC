@@ -10,10 +10,9 @@ namespace PlatinumC.CodeGenerator.Fasm
         {
             SantizeAssemblyFilePath(compilationResult.CompilationOptions);
             SantizeOutputFilePath(compilationResult.CompilationOptions);
-            GenerateAssembly(compilationResult);
-            return GenerateExecutable(compilationResult.CompilationOptions);
+            return GenerateExecutable(compilationResult);
         }
-        private static void GenerateAssembly(CompilationResult data)
+        private static string? GenerateExecutable(CompilationResult data)
         {
             var sb = new StringBuilder();
             if (data.CompilationOptions.OutputTarget == OutputTarget.Exe)
@@ -156,15 +155,18 @@ namespace PlatinumC.CodeGenerator.Fasm
                 sb.AppendLine("end if".Indent(1));
 
             }
-
-            File.WriteAllText(data.CompilationOptions.AssemblyPath, sb.ToString());
+            if (!data.CompilationOptions.AssemblerOptions.EnableInMemoryAssembly)
+            {
+                File.WriteAllText(data.CompilationOptions.AssemblyPath, sb.ToString());
+                return FasmDllService.RunFasm(data.CompilationOptions);
+            }
+            return FasmDllService.RunFasmInMemory(sb, data.CompilationOptions);
         }
 
         private static string? GenerateExecutable(CompilationOptions options)
         {
             return FasmService.RunFasm(options);
         }
-
 
         private static void SantizeAssemblyFilePath(CompilationOptions options)
         {
