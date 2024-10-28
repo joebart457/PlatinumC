@@ -717,8 +717,8 @@ namespace PlatinumC.Optimizer
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
                             if (nextInstruction != null 
-                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp || nextInstruction is Push_Address || nextInstruction is Push_Immediate<int> || nextInstruction is Push_Offset || nextInstruction is Push_Register || nextInstruction is Push_SymbolOffset)
-                                && !IsReferenced([nextInstruction], i + 1, X86Register.esp))
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp)
+                                && !IsEspReferenced([nextInstruction], 0))
                             {
                                 optimizedInstructions.Add(TrackInstruction(nextInstruction));
                                 i = i + 2;
@@ -729,9 +729,9 @@ namespace PlatinumC.Optimizer
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
                             if (nextInstruction != null 
-                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp || nextInstruction is Push_Address || nextInstruction is Push_Immediate<int> || nextInstruction is Push_Offset || nextInstruction is Push_Register || nextInstruction is Push_SymbolOffset)
-                                && !IsReferenced([nextInstruction], i + 1, X86Register.esp) 
-                                && !IsReferenced([nextInstruction], i + 1, push_Register.Register))
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp)
+                                && !IsEspReferenced([nextInstruction], 0) 
+                                && !IsReferenced([nextInstruction], 0, push_Register.Register))
                             {
 
                                 // Test for
@@ -780,8 +780,8 @@ namespace PlatinumC.Optimizer
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
                             if (nextInstruction != null 
-                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp || nextInstruction is Push_Address || nextInstruction is Push_Immediate<int> || nextInstruction is Push_Offset || nextInstruction is Push_Register || nextInstruction is Push_SymbolOffset)
-                                && !IsReferenced([nextInstruction], i + 1, X86Register.esp))
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp)
+                                && !IsEspReferenced([nextInstruction], 0))
                             {
                                 optimizedInstructions.Add(TrackInstruction(nextInstruction));
                                 i = i + 2;
@@ -792,11 +792,10 @@ namespace PlatinumC.Optimizer
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
                             if (nextInstruction != null 
-                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp || nextInstruction is Push_Address || nextInstruction is Push_Immediate<int> || nextInstruction is Push_Offset || nextInstruction is Push_Register || nextInstruction is Push_SymbolOffset) 
-                                && !IsReferenced([nextInstruction], i + 1, X86Register.esp) 
-                                && !IsReferenced([nextInstruction], i + 1, push_Offset.Offset) 
-                                && !IsReferenced([nextInstruction], i + 1, push_Offset.Offset.Register)) // TODO check for offset register reference really needs to just check if the register loses integrity
-                                                                                                         // IE assignments/arithmetic using the register as a destination, but currently this checks for ANY reference
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp) 
+                                && !IsEspReferenced([nextInstruction], 0) 
+                                && !IsReferenced([nextInstruction], 0, push_Offset.Offset) 
+                                && !DoesRegisterLoseIntegrity(nextInstruction, push_Offset.Offset.Register))
                             {
                         
                                 // Test for
@@ -824,8 +823,8 @@ namespace PlatinumC.Optimizer
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
                             if (nextInstruction != null 
-                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp || nextInstruction is Push_Address || nextInstruction is Push_Immediate<int> || nextInstruction is Push_Offset || nextInstruction is Push_Register || nextInstruction is Push_SymbolOffset) 
-                                && !IsReferenced([nextInstruction], i + 1, X86Register.esp))
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp) 
+                                && !IsReferenced([nextInstruction], 0, X86Register.esp))
                             {
                                 optimizedInstructions.Add(TrackInstruction(nextInstruction));
                                 i = i + 2;
@@ -1435,7 +1434,6 @@ namespace PlatinumC.Optimizer
             if (index >= instructions.Count) return false;
             if (offset == null) offset = originalOffset;
             if (exploredLabels == null) exploredLabels = new HashSet<string>();
-            if (offset.Register == X86Register.esp) return true; // ignore stack references
             var instruction = instructions[index];
 
             if (instruction is Cdq cdq)
@@ -1444,19 +1442,24 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Push_Register push_Register)
             {
-
+                if (offset.Register == X86Register.esp) 
+                    offset = Offset.Create(offset.Register, offset.Offset + 4); // pushing to the stack alters it by -4 (here we add 4 since IE [esp+4] push 0 means [esp+4] is actually [esp+8] now)
             }
             if (instruction is Push_Offset push_Offset)
             {
                 if (push_Offset.Offset.Equals(offset)) return true;
+                if (offset.Register == X86Register.esp) 
+                    offset = Offset.Create(offset.Register, offset.Offset + 4); // pushing to the stack alters it by -4 (here we add 4 since IE [esp+4] push 0 means [esp+4] is actually [esp+8] now)
             }
             if (instruction is Push_Address push_Address)
             {
-
+                if (offset.Register == X86Register.esp) 
+                    offset = Offset.Create(offset.Register, offset.Offset + 4); // pushing to the stack alters it by -4 (here we add 4 since IE [esp+4] push 0 means [esp+4] is actually [esp+8] now)
             }
             if (instruction is Push_Immediate<int> push_Immediate)
             {
-
+                if (offset.Register == X86Register.esp) 
+                    offset = Offset.Create(offset.Register, offset.Offset + 4); // pushing to the stack alters it by -4 (here we add 4 since IE [esp+4] push 0 means [esp+4] is actually [esp+8] now)
             }
             if (instruction is Lea_Register_Offset lea_Register_Offset)
             {
@@ -1539,6 +1542,8 @@ namespace PlatinumC.Optimizer
             if (instruction is Pop_Register pop_Register)
             {
                 if (pop_Register.Destination == offset.Register) return false;
+                if (offset.Register == X86Register.esp)
+                    offset = Offset.Create(offset.Register, offset.Offset - 4); // popping from the stack alters it by +4 (here we subtract 4 since IE [esp+4] pop eax means [esp+4] is actually [esp] now)
             }
             if (instruction is Neg_Offset neg_Offset)
             {
@@ -1743,122 +1748,10 @@ namespace PlatinumC.Optimizer
         private bool IsReferenced(List<X86Instruction> instructions, int index, X86Register register, HashSet<string>? exploredLabels = null)
         {
             if (index >= instructions.Count) return false;
+            if (register == X86Register.esp) return true; // Ignore stack operations (See IsEspReferenced)
             if (exploredLabels == null) exploredLabels = new HashSet<string>();
-            if (register == X86Register.esp) return true; // ignore stack references
             var instruction = instructions[index];
 
-            if (instruction is Cdq cdq)
-            {
-                if (register == X86Register.eax) return true;
-                if (register == X86Register.edx) return false;
-            }
-            if (instruction is Push_Register push_Register)
-            {
-                if (push_Register.Register == register) return true;
-            }
-            if (instruction is Push_Offset push_Offset)
-            {
-                if (push_Offset.Offset.Register == register) return true;
-            }
-            if (instruction is Push_Address push_Address)
-            {
-
-            }
-            if (instruction is Push_Immediate<int> push_Immediate)
-            {
-
-            }
-            if (instruction is Lea_Register_Offset lea_Register_Offset)
-            {
-                if (lea_Register_Offset.Source.Register == register) return true;
-                if (lea_Register_Offset.Destination == register) return false;
-            }
-            if (instruction is Mov_Register_Offset mov_Register_Offset)
-            {
-                if (mov_Register_Offset.Source.Register == register) return true;
-                if (mov_Register_Offset.Destination == register) return false;
-            }
-            if (instruction is Mov_Offset_Register mov_Offset_Register)
-            {
-                if (mov_Offset_Register.Destination.Register == register || mov_Offset_Register.Source == register) return true;
-            }
-            if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
-            {
-                if (mov_Offset_Immediate.Destination.Register == register) return true;
-            }
-            if (instruction is Mov_Register_Register mov_Register_Register)
-            {
-                if (mov_Register_Register.Source == register) return true;
-                if (mov_Register_Register.Destination == register) return false;
-            }
-            if (instruction is Mov_Register_Immediate mov_Register_Immediate)
-            {
-                if (mov_Register_Immediate.Destination == register) return false;
-            }
-            if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
-            {
-                if (mov_Offset_Register__Byte.Destination.Register == register || mov_Offset_Register__Byte.Source.ToFullRegister() == register) return true;
-            }
-            if (instruction is Movsx_Register_Offset movsx_Register_Offset)
-            {
-                if (movsx_Register_Offset.Destination == register || movsx_Register_Offset.Source.Register == register) return true;
-            }
-            if (instruction is Sub_Register_Immediate sub_Register_Immediate)
-            {
-                if (sub_Register_Immediate.Destination == register) return true;
-            }
-            if (instruction is Sub_Register_Register sub_Register_Register)
-            {
-                if (sub_Register_Register.Destination == register || sub_Register_Register.Source == register) return true;
-            }
-            if (instruction is Add_Register_Immediate add_Register_Immediate)
-            {
-                if (add_Register_Immediate.Destination == register) return true;
-            }
-            if (instruction is Add_Register_Register add_Register_Register)
-            {
-                if (add_Register_Register.Destination == register || add_Register_Register.Source == register) return true;
-            }
-            if (instruction is And_Register_Register and_Register_Register)
-            {
-                if (and_Register_Register.Destination == register || and_Register_Register.Source == register) return true;
-            }
-            if (instruction is Or_Register_Register or_Register_Register)
-            {
-                if (or_Register_Register.Destination == register || or_Register_Register.Source == register) return true;
-            }
-            if (instruction is Xor_Register_Register xor_Register_Register)
-            {
-                if (xor_Register_Register.Destination == register || xor_Register_Register.Source == register) return true;
-            }
-            if (instruction is Pop_Register pop_Register)
-            {
-                if (pop_Register.Destination == register) return false;
-            }
-            if (instruction is Neg_Offset neg_Offset)
-            {
-                if (neg_Offset.Operand.Register == register) return true;
-            }
-            if (instruction is Not_Offset not_Offset)
-            {
-                if (not_Offset.Operand.Register == register) return true;
-            }
-            if (instruction is IDiv_Offset idiv_Offset)
-            {
-                if (idiv_Offset.Divisor.Register == register) return true;
-            }
-            if (instruction is IMul_Register_Register imul_Register_Register)
-            {
-                if (imul_Register_Register.Destination == register || imul_Register_Register.Source == register) return true;
-            }
-            if (instruction is IMul_Register_Immediate imul_Register_Immediate)
-            {
-                if (imul_Register_Immediate.Destination == register) return true;
-            }
-            if (instruction is Add_Register_Offset add_Register_Offset)
-            {
-                if (add_Register_Offset.Source.Register == register || add_Register_Offset.Destination == register) return true;
-            }
             if (instruction is Jmp jmp)
             {
                 if (!exploredLabels.Contains(jmp.Label))
@@ -1883,144 +1776,527 @@ namespace PlatinumC.Optimizer
 
                 }
             }
-            if (instruction is Test_Register_Register test_Register_Register)
+            else if (instruction is Label label)
+            {
+                if (exploredLabels.Contains(label.Text)) return false;
+                exploredLabels.Add(label.Text);
+            }
+            else if (IsRegisterReferencedHelper(instruction, register)) return true;
+
+
+            return IsReferenced(instructions, index + 1, register, exploredLabels);
+        }
+
+        private bool IsEspReferenced(List<X86Instruction> instructions, int index, HashSet<string>? exploredLabels = null)
+        {
+            // Esp requires specific handling due to it being the stack pointer
+
+            if (index >= instructions.Count) return false;
+            if (exploredLabels == null) exploredLabels = new HashSet<string>();
+            var instruction = instructions[index];
+
+            if (instruction is Jmp jmp)
+            {
+                if (!exploredLabels.Contains(jmp.Label))
+                {
+                    var labelIndex = instructions.FindIndex(x => x is Label l && l.Text == jmp.Label);
+                    if (labelIndex == -1) return true; // we cannot find the label so we must assume it is referenced
+
+                    if (jmp.Emit().StartsWith("jmp")) // if it is unconditional jump
+                        return IsEspReferenced(instructions, labelIndex, exploredLabels);
+                    else
+                    {
+                        var refencedInBranch = IsEspReferenced(instructions, labelIndex, exploredLabels);
+                        if (refencedInBranch) return true;
+                        // Otherwise keep going
+                    }
+                }
+                else
+                {
+                    // otherwise, we've already explored the jump
+                    if (jmp.Emit().StartsWith("jmp")) // it is an unconditional jump that we've already explored
+                        return false;
+                }
+            }
+            else if (instruction is Label label)
+            {
+                if (exploredLabels.Contains(label.Text)) return false;
+                exploredLabels.Add(label.Text);
+            }
+            else if (IsRegisterReferencedHelper(instruction, X86Register.esp)) return true;
+
+            return IsEspReferenced(instructions, index + 1, exploredLabels);
+        }
+
+        private bool IsRegisterReferencedHelper(X86Instruction instruction, X86Register register)
+        {
+            if (instruction is Cdq cdq)
+            {
+                if (register == X86Register.eax) return true;
+                if (register == X86Register.edx) return false;
+            }
+            else if (instruction is Push_Register push_Register)
+            {
+                if (push_Register.Register == register) return true;
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Push_Offset push_Offset)
+            {
+                if (push_Offset.Offset.Register == register) return true;
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Push_Address push_Address)
+            {
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Push_Immediate<int> push_Immediate)
+            {
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Lea_Register_Offset lea_Register_Offset)
+            {
+                if (lea_Register_Offset.Source.Register == register) return true;
+                if (lea_Register_Offset.Destination == register) return false;
+            }
+            else if (instruction is Mov_Register_Offset mov_Register_Offset)
+            {
+                if (mov_Register_Offset.Source.Register == register) return true;
+                if (mov_Register_Offset.Destination == register) return false;
+            }
+            else if (instruction is Mov_Offset_Register mov_Offset_Register)
+            {
+                if (mov_Offset_Register.Destination.Register == register || mov_Offset_Register.Source == register) return true;
+            }
+            else if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
+            {
+                if (mov_Offset_Immediate.Destination.Register == register) return true;
+            }
+            else if (instruction is Mov_Register_Register mov_Register_Register)
+            {
+                if (mov_Register_Register.Source == register) return true;
+                if (mov_Register_Register.Destination == register) return false;
+            }
+            else if (instruction is Mov_Register_Immediate mov_Register_Immediate)
+            {
+                if (mov_Register_Immediate.Destination == register) return false;
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+                if (mov_Offset_Register__Byte.Destination.Register == register || mov_Offset_Register__Byte.Source.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Movsx_Register_Offset movsx_Register_Offset)
+            {
+                if (movsx_Register_Offset.Destination == register || movsx_Register_Offset.Source.Register == register) return true;
+            }
+            else if (instruction is Sub_Register_Immediate sub_Register_Immediate)
+            {
+                if (sub_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Sub_Register_Register sub_Register_Register)
+            {
+                if (sub_Register_Register.Destination == register || sub_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Add_Register_Immediate add_Register_Immediate)
+            {
+                if (add_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Add_Register_Register add_Register_Register)
+            {
+                if (add_Register_Register.Destination == register || add_Register_Register.Source == register) return true;
+            }
+            else if (instruction is And_Register_Register and_Register_Register)
+            {
+                if (and_Register_Register.Destination == register || and_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Or_Register_Register or_Register_Register)
+            {
+                if (or_Register_Register.Destination == register || or_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Xor_Register_Register xor_Register_Register)
+            {
+                if (xor_Register_Register.Destination == register || xor_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Pop_Register pop_Register)
+            {
+                if (register == X86Register.esp) return true;
+                if (pop_Register.Destination == register) return false;
+            }
+            else if (instruction is Neg_Offset neg_Offset)
+            {
+                if (neg_Offset.Operand.Register == register) return true;
+            }
+            else if (instruction is Not_Offset not_Offset)
+            {
+                if (not_Offset.Operand.Register == register) return true;
+            }
+            else if (instruction is IDiv_Offset idiv_Offset)
+            {
+                if (idiv_Offset.Divisor.Register == register) return true;
+            }
+            else if (instruction is IMul_Register_Register imul_Register_Register)
+            {
+                if (imul_Register_Register.Destination == register || imul_Register_Register.Source == register) return true;
+            }
+            else if (instruction is IMul_Register_Immediate imul_Register_Immediate)
+            {
+                if (imul_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Add_Register_Offset add_Register_Offset)
+            {
+                if (add_Register_Offset.Source.Register == register || add_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Test_Register_Register test_Register_Register)
             {
                 if (test_Register_Register.Operand1 == register || test_Register_Register.Operand2 == register) return true;
             }
-            if (instruction is Test_Register_Offset test_Register_Offset)
+            else if (instruction is Test_Register_Offset test_Register_Offset)
             {
                 if (test_Register_Offset.Operand1 == register || test_Register_Offset.Operand2.Register == register) return true;
             }
-            if (instruction is Cmp_Register_Register cmp_Register_Register)
+            else if (instruction is Cmp_Register_Register cmp_Register_Register)
             {
                 if (cmp_Register_Register.Operand1 == register || cmp_Register_Register.Operand2 == register) return true;
             }
-            if (instruction is Cmp_Register_Immediate cmp_Register_Immediate)
+            else if (instruction is Cmp_Register_Immediate cmp_Register_Immediate)
             {
                 if (cmp_Register_Immediate.Operand1 == register) return true;
             }
-            if (instruction is Cmp_Byte_Byte cmp_Byte_Byte)
+            else if (instruction is Cmp_Byte_Byte cmp_Byte_Byte)
             {
                 if (cmp_Byte_Byte.Operand1.ToFullRegister() == register || cmp_Byte_Byte.Operand2.ToFullRegister() == register) return true;
             }
-            if (instruction is Call call)
+            else if (instruction is Call call)
             {
                 if (register == X86Register.eax) return false;
                 if (register == X86Register.ebx) return false;
                 if (register == X86Register.ecx) return false;
                 if (register == X86Register.edx) return false;
             }
-            if (instruction is Label label)
-            {
-                if (exploredLabels.Contains(label.Text)) return false;
-                exploredLabels.Add(label.Text);
-            }
-            if (instruction is Ret ret)
+            else if (instruction is Ret ret)
             {
                 // return values placed on eax
                 return register == X86Register.eax;
             }
-            if (instruction is Ret_Immediate ret_Immediate)
+            else if (instruction is Ret_Immediate ret_Immediate)
             {
                 // return values placed on eax
                 return register == X86Register.eax;
             }
-            if (instruction is Fstp_Offset fstp_Offset)
+            else if (instruction is Fstp_Offset fstp_Offset)
             {
                 if (fstp_Offset.Destination.Register == register) return true;
             }
-            if (instruction is Fld_Offset fld_Offset)
+            else if (instruction is Fld_Offset fld_Offset)
             {
                 if (fld_Offset.Source.Register == register) return true;
             }
-            if (instruction is Movss_Offset_Register movss_Offset_Register)
+            else if (instruction is Movss_Offset_Register movss_Offset_Register)
             {
                 if (movss_Offset_Register.Destination.Register == register) return true;
             }
-            if (instruction is Movss_Register_Offset movss_Register_Offset)
+            else if (instruction is Movss_Register_Offset movss_Register_Offset)
             {
                 if (movss_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Comiss_Register_Offset comiss_Register_Offset)
+            else if (instruction is Comiss_Register_Offset comiss_Register_Offset)
             {
                 if (comiss_Register_Offset.Operand2.Register == register) return true;
             }
-            if (instruction is Comiss_Register_Register comiss_Register_Register)
+            else if (instruction is Comiss_Register_Register comiss_Register_Register)
             {
 
             }
-            if (instruction is Ucomiss_Register_Register ucomiss_Register_Register)
+            else if (instruction is Ucomiss_Register_Register ucomiss_Register_Register)
             {
 
             }
-            if (instruction is Addss_Register_Offset addss_Register_Offset)
+            else if (instruction is Addss_Register_Offset addss_Register_Offset)
             {
                 if (addss_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Subss_Register_Offset subss_Register_Offset)
+            else if (instruction is Subss_Register_Offset subss_Register_Offset)
             {
                 if (subss_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Mulss_Register_Offset mulss_Register_Offset)
+            else if (instruction is Mulss_Register_Offset mulss_Register_Offset)
             {
                 if (mulss_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Divss_Register_Offset divss_Register_Offset)
+            else if (instruction is Divss_Register_Offset divss_Register_Offset)
             {
                 if (divss_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Cvtsi2ss_Register_Offset cvtsi2Ss_Register_Offset)
+            else if (instruction is Cvtsi2ss_Register_Offset cvtsi2Ss_Register_Offset)
             {
                 if (cvtsi2Ss_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
+            else if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
             {
                 if (cvtss2Si_Register_Offset.Source.Register == register) return true;
             }
-            if (instruction is Push_SymbolOffset push_SymbolOffset)
+            else if (instruction is Push_SymbolOffset push_SymbolOffset)
             {
-
+                if (register == X86Register.esp) return true;
             }
-            if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            else if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
             {
                 if (lea_Register_SymbolOffset.Destination == register) return false;
             }
-            if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            else if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
             {
                 if (mov_SymbolOffset_Register.Source == register) return true;
             }
-            if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            else if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
             {
                 if (mov_SymbolOffset_Register__Byte.Source.ToFullRegister() == register) return true;
             }
-            if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
+            else if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
             {
                 if (movsx_Register_SymbolOffset.Destination == register) return false;
             }
-            if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+            else if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
             {
 
             }
-            if (instruction is Inc_Register inc_Register)
+            else if (instruction is Inc_Register inc_Register)
             {
                 if (inc_Register.Destination == register) return true;
             }
-            if (instruction is Dec_Register dec_Register)
+            else if (instruction is Dec_Register dec_Register)
             {
                 if (dec_Register.Destination == register) return true;
             }
-            if (instruction is Inc_Offset inc_Offset)
+            else if (instruction is Inc_Offset inc_Offset)
             {
                 if (inc_Offset.Destination.Register == register) return true;
             }
-            if (instruction is Dec_Offset dec_Offset)
+            else if (instruction is Dec_Offset dec_Offset)
             {
                 if (dec_Offset.Destination.Register == register) return true;
             }
 
-            return IsReferenced(instructions, index + 1, register, exploredLabels);
+            return false;
         }
+        private bool DoesRegisterLoseIntegrity(X86Instruction instruction, X86Register register)
+        {
+            if (instruction is Cdq cdq)
+            {
+                if (register == X86Register.eax) return true;
+                if (register == X86Register.edx) return true;
+            }
+            else if (instruction is Push_Register push_Register)
+            {
+                if (push_Register.Register == register) return true;
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Push_Offset push_Offset)
+            {
+                if (push_Offset.Offset.Register == register) return true;
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Push_Address push_Address)
+            {
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Push_Immediate<int> push_Immediate)
+            {
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Lea_Register_Offset lea_Register_Offset)
+            {
+                if (lea_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Mov_Register_Offset mov_Register_Offset)
+            {
+                if (mov_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Mov_Offset_Register mov_Offset_Register)
+            {
+            }
+            else if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
+            {
+            }
+            else if (instruction is Mov_Register_Register mov_Register_Register)
+            {
+                if (mov_Register_Register.Destination == register) return true;
+            }
+            else if (instruction is Mov_Register_Immediate mov_Register_Immediate)
+            {
+                if (mov_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+            }
+            else if (instruction is Movsx_Register_Offset movsx_Register_Offset)
+            {
+                if (movsx_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Sub_Register_Immediate sub_Register_Immediate)
+            {
+                if (sub_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Sub_Register_Register sub_Register_Register)
+            {
+                if (sub_Register_Register.Destination == register) return true;
+            }
+            else if (instruction is Add_Register_Immediate add_Register_Immediate)
+            {
+                if (add_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Add_Register_Register add_Register_Register)
+            {
+                if (add_Register_Register.Destination == register) return true;
+            }
+            else if (instruction is And_Register_Register and_Register_Register)
+            {
+                if (and_Register_Register.Destination == register) return true;
+            }
+            else if (instruction is Or_Register_Register or_Register_Register)
+            {
+                if (or_Register_Register.Destination == register ) return true;
+            }
+            else if (instruction is Xor_Register_Register xor_Register_Register)
+            {
+                if (xor_Register_Register.Destination == register) return true;
+            }
+            else if (instruction is Pop_Register pop_Register)
+            {
+                if (register == X86Register.esp) return true;
+                if (pop_Register.Destination == register) return true;
+            }
+            else if (instruction is Neg_Offset neg_Offset)
+            {
+            }
+            else if (instruction is Not_Offset not_Offset)
+            {
+            }
+            else if (instruction is IDiv_Offset idiv_Offset)
+            {
+            }
+            else if (instruction is IMul_Register_Register imul_Register_Register)
+            {
+                if (imul_Register_Register.Destination == register) return true;
+            }
+            else if (instruction is IMul_Register_Immediate imul_Register_Immediate)
+            {
+                if (imul_Register_Immediate.Destination == register) return true;
+            }
+            else if (instruction is Add_Register_Offset add_Register_Offset)
+            {
+                if (add_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Test_Register_Register test_Register_Register)
+            {
+            }
+            else if (instruction is Test_Register_Offset test_Register_Offset)
+            {
+            }
+            else if (instruction is Cmp_Register_Register cmp_Register_Register)
+            {
+            }
+            else if (instruction is Cmp_Register_Immediate cmp_Register_Immediate)
+            {
+            }
+            else if (instruction is Cmp_Byte_Byte cmp_Byte_Byte)
+            {
+            }
+            else if (instruction is Call call)
+            {
+                if (register == X86Register.eax) return true;
+                if (register == X86Register.ebx) return true;
+                if (register == X86Register.ecx) return true;
+                if (register == X86Register.edx) return true;
+            }
+            else if (instruction is Ret ret)
+            {
+            }
+            else if (instruction is Ret_Immediate ret_Immediate)
+            {
+            }
+            else if (instruction is Fstp_Offset fstp_Offset)
+            {
+            }
+            else if (instruction is Fld_Offset fld_Offset)
+            {
+            }
+            else if (instruction is Movss_Offset_Register movss_Offset_Register)
+            {
+            }
+            else if (instruction is Movss_Register_Offset movss_Register_Offset)
+            {
+            }
+            else if (instruction is Comiss_Register_Offset comiss_Register_Offset)
+            {
+                if (comiss_Register_Offset.Operand2.Register == register) return true;
+            }
+            else if (instruction is Comiss_Register_Register comiss_Register_Register)
+            {
 
+            }
+            else if (instruction is Ucomiss_Register_Register ucomiss_Register_Register)
+            {
+
+            }
+            else if (instruction is Addss_Register_Offset addss_Register_Offset)
+            {
+            }
+            else if (instruction is Subss_Register_Offset subss_Register_Offset)
+            {
+            }
+            else if (instruction is Mulss_Register_Offset mulss_Register_Offset)
+            {
+            }
+            else if (instruction is Divss_Register_Offset divss_Register_Offset)
+            {
+            }
+            else if (instruction is Cvtsi2ss_Register_Offset cvtsi2Ss_Register_Offset)
+            {
+            }
+            else if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
+            {
+                if (cvtss2Si_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Push_SymbolOffset push_SymbolOffset)
+            {
+                if (register == X86Register.esp) return true;
+            }
+            else if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            {
+                if (lea_Register_SymbolOffset.Destination == register) return true;
+            }
+            else if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            {
+            }
+            else if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            {
+            }
+            else if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
+            {
+                if (movsx_Register_SymbolOffset.Destination == register) return true;
+            }
+            else if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+            {
+
+            }
+            else if (instruction is Inc_Register inc_Register)
+            {
+                if (inc_Register.Destination == register) return true;
+            }
+            else if (instruction is Dec_Register dec_Register)
+            {
+                if (dec_Register.Destination == register) return true;
+            }
+            else if (instruction is Inc_Offset inc_Offset)
+            {
+                if (inc_Offset.Destination.Register == register) return true;
+            }
+            else if (instruction is Dec_Offset dec_Offset)
+            {
+                if (dec_Offset.Destination.Register == register) return true;
+            }
+
+            return false;
+        }
     }
 }
 
