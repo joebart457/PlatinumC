@@ -713,6 +713,13 @@ namespace PlatinumC.Optimizer
                             continue;
                         }
 
+                        if (Peek(fn.Instructions, i + 1) is Pop_Register pop_Register1)
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_Register1.Destination, push_Register.Register)));
+                            i++;
+                            continue;
+                        }
+
                         if (Peek(fn.Instructions, i + 2) is Add_Register_Immediate add_Register_Immediate2 && add_Register_Immediate2.Destination == X86Register.esp && add_Register_Immediate2.ValueToAdd == 4)
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
@@ -725,7 +732,7 @@ namespace PlatinumC.Optimizer
                                 continue;
                             }
                         }
-                        if (Peek(fn.Instructions, i + 2) is Pop_Register pop_Register1)
+                        if (Peek(fn.Instructions, i + 2) is Pop_Register pop_Register2)
                         {
                             var nextInstruction = Peek(fn.Instructions, i + 1);
                             if (nextInstruction != null 
@@ -740,7 +747,7 @@ namespace PlatinumC.Optimizer
                                 // pop ebx
                                 // optimization:
                                 // mov eax, [ebp + 12]
-                                if (push_Register.Register == pop_Register1.Destination) optimizedInstructions.Add(TrackInstruction(nextInstruction));
+                                if (push_Register.Register == pop_Register2.Destination) optimizedInstructions.Add(TrackInstruction(nextInstruction));
                                 else
                                 {
                                     // Test for
@@ -751,7 +758,7 @@ namespace PlatinumC.Optimizer
                                     // mov eax, [ebp + 12]
                                     // mov edx, ebx
                                     optimizedInstructions.Add(TrackInstruction(nextInstruction));
-                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_Register1.Destination, push_Register.Register)));
+                                    optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_Register2.Destination, push_Register.Register)));
                                 }
                                 i = i + 2;
                                 continue;
@@ -1396,7 +1403,7 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Inc_Register inc_Register)
                     {
-                        if (_registerValues.TryGetValue(inc_Register.Destination, out var value) && value.IsRegisterOffset)
+                        if (_registerValues.TryGetValue(inc_Register.Destination, out var value) && value.IsRegisterOffset && !IsReferenced(fn.Instructions, i+1, inc_Register.Destination))
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Inc(value.RegisterOffset)));
                             continue;
@@ -1404,7 +1411,7 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Dec_Register dec_Register)
                     {
-                        if (_registerValues.TryGetValue(dec_Register.Destination, out var value) && value.IsRegisterOffset)
+                        if (_registerValues.TryGetValue(dec_Register.Destination, out var value) && value.IsRegisterOffset && !IsReferenced(fn.Instructions, i + 1, dec_Register.Destination))
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Dec(value.RegisterOffset)));
                             continue;
@@ -1781,7 +1788,12 @@ namespace PlatinumC.Optimizer
                 if (exploredLabels.Contains(label.Text)) return false;
                 exploredLabels.Add(label.Text);
             }
-            else if (IsRegisterReferencedHelper(instruction, register)) return true;
+            else
+            {
+                var isReferenced = IsRegisterReferencedHelper(instruction, register);
+                if (isReferenced != null) return isReferenced.Value;
+                // If null, we are unable to determine yet, so continue
+            }
 
 
             return IsReferenced(instructions, index + 1, register, exploredLabels);
@@ -1823,12 +1835,17 @@ namespace PlatinumC.Optimizer
                 if (exploredLabels.Contains(label.Text)) return false;
                 exploredLabels.Add(label.Text);
             }
-            else if (IsRegisterReferencedHelper(instruction, X86Register.esp)) return true;
+            else
+            {
+                var isReferenced = IsRegisterReferencedHelper(instruction, X86Register.esp);
+                if (isReferenced != null) return isReferenced.Value;
+                // If null, we are unable to determine yet, so continue
+            }
 
             return IsEspReferenced(instructions, index + 1, exploredLabels);
         }
 
-        private bool IsRegisterReferencedHelper(X86Instruction instruction, X86Register register)
+        private bool? IsRegisterReferencedHelper(X86Instruction instruction, X86Register register)
         {
             if (instruction is Cdq cdq)
             {
@@ -2075,7 +2092,7 @@ namespace PlatinumC.Optimizer
                 if (dec_Offset.Destination.Register == register) return true;
             }
 
-            return false;
+            return null;
         }
         private bool DoesRegisterLoseIntegrity(X86Instruction instruction, X86Register register)
         {
