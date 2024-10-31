@@ -126,7 +126,6 @@ namespace PlatinumC.Shared
             base.Visit(context);
             context.AddImportLibrary(this);
         }
-
     }
 
     public class TypedImportedFunctionDeclaration : TypedDeclaration
@@ -248,6 +247,21 @@ namespace PlatinumC.Shared
         {
             base.Visit(context);
             context.AddPointerData(0, Identifier.Lexeme);
+        }
+    }
+
+    public class TypedProgramIconDeclaration : TypedDeclaration
+    {
+        public IToken IconFilePath { get; set; }
+        public TypedProgramIconDeclaration(Declaration originalDeclaration, IToken iconFilePath) : base(originalDeclaration)
+        {
+            IconFilePath = iconFilePath;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            context.SetProgramIcon(IconFilePath);
         }
 
     }

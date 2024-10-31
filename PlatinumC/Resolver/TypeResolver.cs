@@ -612,5 +612,10 @@ namespace PlatinumC.Resolver
             }
             throw new ParsingException(globalVariableDeclaration.Identifier, "global variables must have a compile-time constant initializer");
         }
+
+        internal TypedDeclaration Accept(ProgramIconDeclaration programIconDeclaration)
+        {
+            return new TypedProgramIconDeclaration(programIconDeclaration, programIconDeclaration.IconFilePath);
+        }
     }
 }

@@ -56,5 +56,7 @@ namespace PlatinumC.Parser.Constants
         public static string Nullptr = "Nullptr";
         public static string Global = "Global";
         public static string As = "As";
+
+        public static string Icon = "Icon";
     }
 }

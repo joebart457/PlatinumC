@@ -1,4 +1,5 @@
-﻿using PlatinumC.CodeGenerator.Fasm;
+﻿using ParserLite.Exceptions;
+using PlatinumC.CodeGenerator.Fasm;
 using PlatinumC.Compiler.TargetX86;
 using PlatinumC.Compiler.TargetX86.Instructions;
 using PlatinumC.Extensions;
@@ -155,6 +156,16 @@ namespace PlatinumC.Compiler
             }
         }
 
+        public class IconData
+        {
+            public string FilePath { get; set; }
+
+            public IconData(string filePath)
+            {
+                FilePath = filePath;
+            }
+        }
+
         public CompilationOptions CompilationOptions { get; private set; }
 
         public X86CompilationContext(CompilationOptions compilationOptions)
@@ -182,6 +193,7 @@ namespace PlatinumC.Compiler
         public List<IntegerData> StaticIntegerData => _integerData;
         public List<ByteData> StaticByteData => _byteData;
         public List<PointerData> StaticPointerData => _pointerData;
+        public IconData? ProgramIcon { get; set; }
         public int SizeOfPtr => 4;
 
         public List<X86Function> FunctionData { get; private set; } = new();
@@ -334,6 +346,12 @@ namespace PlatinumC.Compiler
         {
             if ( _loopLabels.Count == 0 ) throw new InvalidOperationException();
             return _loopLabels.Peek().continueLabel;
+        }
+
+        public void SetProgramIcon(IToken iconFilePath)
+        {
+            if (ProgramIcon != null) throw new ParsingException(iconFilePath, $"program icon must only be defined once");
+            ProgramIcon = new IconData(iconFilePath.Lexeme);
         }
 
     }

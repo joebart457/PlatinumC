@@ -125,6 +125,7 @@ namespace PlatinumC.Parser
             if (AdvanceIfMatch(TokenTypes.Library)) return ParseImportLibraryDeclaration();
             if (AdvanceIfMatch(TokenTypes.Import)) return ParseImportedFunctionDeclaration();
             if (AdvanceIfMatch(TokenTypes.Global)) return ParseGlobalVariableDeclaration();
+            if (AdvanceIfMatch(TokenTypes.Icon)) return ParseProgramIconDeclaration();
             return ParseFunctionDeclaration();
         }
 
@@ -138,6 +139,13 @@ namespace PlatinumC.Parser
             var libraryPath = Consume(BuiltinTokenTypes.String, "expect import library path");
 
             return new ImportLibraryDeclaration(token, libraryAlias, libraryPath);
+        }
+
+        public ProgramIconDeclaration ParseProgramIconDeclaration()
+        {
+            var iconPath = Consume(BuiltinTokenTypes.String, "expect icon file path");
+
+            return new ProgramIconDeclaration(iconPath);
         }
 
         public ImportedFunctionDeclaration ParseImportedFunctionDeclaration()

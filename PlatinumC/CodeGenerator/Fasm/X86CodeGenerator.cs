@@ -1,6 +1,11 @@
 ﻿using PlatinumC.Compiler;
 using PlatinumC.Extensions;
+using System.Reflection.PortableExecutable;
+using System.Security.Cryptography;
 using System.Text;
+using static PlatinumC.Compiler.X86CompilationContext;
+using static System.Collections.Specialized.BitVector32;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PlatinumC.CodeGenerator.Fasm
 {
@@ -155,9 +160,46 @@ namespace PlatinumC.CodeGenerator.Fasm
                 sb.AppendLine("end if".Indent(1));
 
             }
+            else if (data.ProgramIcon != null)
+            {
+                // Only include program icon for exe target
+                sb.AppendLine("section '.rsrc'resource data readable");
+                int RT_ICON = 3;
+                int RT_GROUP_ICON = 14;
+                int IDR_ICON = 17;
+                int LANG_NEUTRAL = 0;
+                sb.AppendLine($"root@resource dd 0, %t, 0, 2 shl 16".Indent(1));
+                sb.AppendLine($"dd {RT_ICON}, 80000000h + !icons - root@resource".Indent(1));
+                sb.AppendLine($"dd {RT_GROUP_ICON}, 80000000h + !group_icons - root@resource".Indent(1));
+
+                sb.AppendLine($"!icons:".Indent(1));
+                sb.AppendLine($"dd      0, %t, 0, 1 shl 16".Indent(1));
+                sb.AppendLine($"dd      1, 80000000h + !icon_data.directory - root@resource".Indent(1));
+                sb.AppendLine($"!icon_data.directory dd 0, %t, 0, 10000h, {LANG_NEUTRAL}, !icon_data - root@resource".Indent(1));
+                sb.AppendLine($"!group_icons:".Indent(1));
+                sb.AppendLine($"dd      0, %t, 0, 1 shl 16".Indent(1));
+                sb.AppendLine($"dd {IDR_ICON}, 80000000h + !main_icon.directory - root@resource".Indent(1));             
+                sb.AppendLine($"!main_icon.directory dd 0, %t, 0, 10000h, {LANG_NEUTRAL}, !main_icon - root@resource".Indent(1));
+
+                sb.AppendLine($"!icon_data dd RVA !data, !size, 0, 0".Indent(1));
+                sb.AppendLine($"virtual at 0".Indent(1));
+                sb.AppendLine($"file '{data.ProgramIcon.FilePath}':6, 16".Indent(1));
+                sb.AppendLine($"load !size dword from 8".Indent(1));
+                sb.AppendLine($"load !position dword from 12".Indent(1));
+                sb.AppendLine($"end virtual".Indent(1));
+                sb.AppendLine($"!data file '{data.ProgramIcon.FilePath}':!position, !size".Indent(1));
+                sb.AppendLine($"align 4".Indent(1));
+                sb.AppendLine($"!main_icon dd RVA !header, 6+1*14, 0, 0".Indent(1));
+                sb.AppendLine($"!header dw 0, 1, 1".Indent(1));
+                sb.AppendLine($"file '{data.ProgramIcon.FilePath}':6, 12".Indent(1));
+                sb.AppendLine($"dw 1".Indent(1));
+            }
+
+
             if (!data.CompilationOptions.AssemblerOptions.EnableInMemoryAssembly)
             {
                 File.WriteAllText(data.CompilationOptions.AssemblyPath, sb.ToString());
+                //return FasmService.RunFasm(data.CompilationOptions);
                 return FasmDllService.RunFasm(data.CompilationOptions);
             }
             return FasmDllService.RunFasmInMemory(sb, data.CompilationOptions);

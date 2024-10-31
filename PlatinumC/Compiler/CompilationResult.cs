@@ -19,6 +19,7 @@ namespace PlatinumC.Compiler
         public List<IntegerData> StaticIntegerData { get; private set; }
         public List<ByteData> StaticByteData { get; private set; }
         public List<PointerData> StaticPointerData { get; private set; }
+        public IconData? ProgramIcon { get; private set; }
         public CompilationResult(X86CompilationContext context)
         {
             CompilationOptions = context.CompilationOptions;
@@ -30,6 +31,7 @@ namespace PlatinumC.Compiler
             StaticIntegerData = context.StaticIntegerData;
             StaticByteData = context.StaticByteData;
             StaticPointerData = context.StaticPointerData;
+            ProgramIcon = context.ProgramIcon;
         }
     }
 }

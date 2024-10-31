@@ -141,4 +141,18 @@ namespace PlatinumC.Shared
             return resolver.Accept(this);
         }
     }
+
+    public class ProgramIconDeclaration : Declaration
+    {
+        public IToken IconFilePath { get; set; }
+        public ProgramIconDeclaration(IToken token) : base(token)
+        {
+            IconFilePath = token;
+        }
+
+        public override TypedDeclaration Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
 }
