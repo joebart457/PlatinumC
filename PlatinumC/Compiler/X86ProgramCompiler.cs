@@ -263,7 +263,7 @@ namespace PlatinumC.Compiler
             var foundParameterIndex = CurrentFunction.Parameters.FindIndex(x => x.ParameterName.Lexeme == identifier.Lexeme);
             if (foundParameterIndex != -1) return new RegisterOffset(X86Register.ebp, 8 + (foundParameterIndex * 4));
             var foundLocalVariableIndex = CurrentFunction.LocalVariables.FindIndex(x => x.Identifier.Lexeme == identifier.Lexeme);
-            if (foundLocalVariableIndex != -1) return new RegisterOffset(X86Register.ebp, -4 - (foundLocalVariableIndex * 4));
+            if (foundLocalVariableIndex != -1) return new RegisterOffset(X86Register.ebp, -4 - CurrentFunction.LocalVariables.Take(foundLocalVariableIndex + 1).Sum(x => x.ResolvedType.StackSize()));
             throw new Exception($"local variable {identifier} does not exist");
         }
 
@@ -271,6 +271,7 @@ namespace PlatinumC.Compiler
         {
             return Offset.CreateSymbolOffset(Decorate(identifier.Lexeme), 0);
         }
+
         public void EnterFunction(TypedFunctionDeclaration typedFunctionDeclaration)
         {
             if (_currentFunctionTarget != null) throw new InvalidOperationException();

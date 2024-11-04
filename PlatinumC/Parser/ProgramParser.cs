@@ -318,8 +318,11 @@ namespace PlatinumC.Parser
             var typeSymbol = ParseTypeSymbol();
             var token = Previous();
             var identifier = Consume(BuiltinTokenTypes.Word, "expect identifier symbol");
-            Consume(TokenTypes.Equal, "expect initializer value in variable declaration");
-            var initializerValue = ParseExpression();
+            Expression? initializerValue = null;
+            if (AdvanceIfMatch(TokenTypes.Equal))
+            {
+                initializerValue = ParseExpression();
+            }
             Consume(TokenTypes.SemiColon, "expect ; after statement");
             return new VariableDeclaration(token, typeSymbol, identifier, initializerValue);
         }

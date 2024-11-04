@@ -36,8 +36,8 @@ namespace PlatinumC.Shared
     {
         public ResolvedType ResolvedType { get; set; }
         public IToken Identifier { get; set; }
-        public TypedExpression Initializer { get; set; }
-        public TypedVariableDeclaration(Statement originalStatement, ResolvedType resolvedType, IToken identifier, TypedExpression initializer) : base(originalStatement)
+        public TypedExpression? Initializer { get; set; }
+        public TypedVariableDeclaration(Statement originalStatement, ResolvedType resolvedType, IToken identifier, TypedExpression? initializer) : base(originalStatement)
         {
             ResolvedType = resolvedType;
             Identifier = identifier;
@@ -47,10 +47,14 @@ namespace PlatinumC.Shared
         public override void Visit(X86CompilationContext context)
         {
             base.Visit(context);
-            var storageOffset = context.GetIdentifierOffset(Identifier);
-            Initializer.Visit(context);
-            context.AddInstruction(X86Instructions.Pop(X86Register.eax));
-            context.AddInstruction(X86Instructions.Mov(storageOffset, X86Register.eax));
+            if (Initializer != null)
+            {
+                var storageOffset = context.GetIdentifierOffset(Identifier);
+                Initializer.Visit(context);
+                context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+                context.AddInstruction(X86Instructions.Mov(storageOffset, X86Register.eax));
+            }
+
         }
 
         public override void Visit(TypedFunctionDeclaration functionParent)

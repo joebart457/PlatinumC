@@ -26,6 +26,10 @@ void Main(){
 	ptr hConsole = GetStdHandle(-11);
 	WriteFile(hConsole, "Hello, world!", 12, 0, 0);
 	int w = 9;
+	struct MyType myTLocal;
+	printf_num("structs work %d", myTLocal.x);
+	myTLocal.x = 9;
+	printf_num("structs work %d", myTLocal.x);
 	int x = 5;
 	if (x - 5 == 0){
 		WriteFile(hConsole, "This should print", 17, 0, 0);
@@ -64,6 +68,11 @@ void Main(){
 	printf_num("structs work %d", myT->x);
 	(*myT).x = 9;
 	printf_num("structs work %d", myT->x);
+
+
+
+
+
 	ExitProcess(0);
 
 }

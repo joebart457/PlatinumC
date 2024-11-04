@@ -401,11 +401,11 @@ namespace PlatinumC.Resolver
         internal TypedStatement Accept(VariableDeclaration variableDeclaration)
         {
             var variableType = Resolve(variableDeclaration.TypeSymbol);
-            var initializer = variableDeclaration.Initializer.Visit(this);
+            var initializer = variableDeclaration.Initializer?.Visit(this);
             if (_localVariables.ContainsKey(variableDeclaration.Identifier.Lexeme) || CurrentFunction.Parameters.Any(x => x.ParameterName.Lexeme == variableDeclaration.Identifier.Lexeme)) 
                 throw new ParsingException(variableDeclaration.Identifier, $"identifier {variableDeclaration.Identifier} is already defined");
             _localVariables[variableDeclaration.Identifier.Lexeme] = variableType;
-            if (!variableType.Is(initializer.ResolvedType))
+            if (initializer != null && !variableType.Is(initializer.ResolvedType))
                 throw new ParsingException(variableDeclaration.Identifier, $"initializer of type {initializer.ResolvedType} cannot be converted to type {variableType}");
             return new TypedVariableDeclaration(variableDeclaration, variableType, variableDeclaration.Identifier, initializer);
         }
