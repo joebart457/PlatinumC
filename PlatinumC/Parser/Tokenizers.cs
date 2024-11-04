@@ -15,6 +15,8 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.Library, "library"),
                     new TokenizerRule(TokenTypes.LParen, "("),
                     new TokenizerRule(TokenTypes.RParen, ")"),
+                    new TokenizerRule(TokenTypes.LBracket, "["),
+                    new TokenizerRule(TokenTypes.RParen, "]"),
                     new TokenizerRule(TokenTypes.Colon, ":"),
                     new TokenizerRule(TokenTypes.Comma, ","),
                     new TokenizerRule(TokenTypes.Dot, "."),
@@ -53,6 +55,7 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.Global, "global"),
                     new TokenizerRule(TokenTypes.As, "as"),
                     new TokenizerRule(TokenTypes.Icon, "icon"),
+                    new TokenizerRule(TokenTypes.Type, "type"),
 
                     new TokenizerRule(TokenTypes.CallingConvention, CallingConvention.Cdecl.ToString(), ignoreCase: true),
                     new TokenizerRule(TokenTypes.CallingConvention, CallingConvention.StdCall.ToString(), ignoreCase: true),
@@ -63,6 +66,7 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.SupportedType, SupportedType.Void.ToString().ToLower()),
                     new TokenizerRule(TokenTypes.SupportedType, SupportedType.String.ToString().ToLower()),
                     new TokenizerRule(TokenTypes.SupportedType, SupportedType.Ptr.ToString().ToLower()),
+                    new TokenizerRule(TokenTypes.SupportedType, "struct", SupportedType.Custom.ToString().ToLower()),
 
                     new TokenizerRule(BuiltinTokenTypes.EndOfLineComment, "//"),
                     new TokenizerRule(BuiltinTokenTypes.String, "\"", enclosingLeft: "\"", enclosingRight: "\""),

@@ -199,7 +199,7 @@ namespace PlatinumC.Compiler
         public List<X86Function> FunctionData { get; private set; } = new();
         public List<ImportLibrary> ImportLibraries { get; private set; } = new();
         public List<(string functionIdentifier, string exportedSymbol)> ExportedFunctions => FunctionData.Where(x => x.IsExported)
-            .OrderBy(x => x.ExportedSymbol.Lexeme, StringComparer.Ordinal) // Must be exported in alphabetical order
+            .OrderBy(x => x.ExportedSymbol.Lexeme, StringComparer.Ordinal) // Must be exported in ordinal order
             .Select(x => (x.OriginalDeclaration.GetDecoratedFunctionIdentifier(), x.ExportedSymbol.Lexeme))
             .ToList();
         public void AddImportedFunction(TypedImportedFunctionDeclaration importedFunction)

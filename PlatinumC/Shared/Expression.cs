@@ -54,22 +54,6 @@ namespace PlatinumC.Shared
         }
     }
 
-    public class DereferenceAssignment : Expression
-    {
-        public Expression AssignmentTarget { get; set; }
-        public Expression ValueToAssign { get; set; }
-        public DereferenceAssignment(IToken token, Expression assignmentTarget, Expression valueToAssign) : base(token)
-        {
-            AssignmentTarget = assignmentTarget;
-            ValueToAssign = valueToAssign;
-        }
-
-        public override TypedExpression Visit(TypeResolver resolver)
-        {
-            return resolver.Accept(this);
-        }
-    }
-
     public class Call : Expression
     {
         public IToken FunctionIdentifier { get; set; }
@@ -87,13 +71,11 @@ namespace PlatinumC.Shared
 
     public class Assignment : Expression
     {
-        public Expression? Instance { get; set; }
-        public IToken AssignmentTarget { get; set; }
+        public Expression AssignmentTarget { get; set; }
         public Expression ValueToAssign { get; set; }
-        public Assignment(IToken token, Expression? instance, IToken assignmentTarget, Expression valueToAssign)
+        public Assignment(IToken token, Expression assignmentTarget, Expression valueToAssign)
             : base(token)
         {
-            Instance = instance;
             AssignmentTarget = assignmentTarget;
             ValueToAssign = valueToAssign;
         }
@@ -424,6 +406,23 @@ namespace PlatinumC.Shared
         public Expression Instance { get; set; }
         public IToken MemberTarget { get; set; }
         public GetFromReference(IToken token, Expression instance, IToken memberTarget) : base(token)
+        {
+            Instance = instance;
+            MemberTarget = memberTarget;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+
+    }
+
+    public class GetFromLocalStruct : Expression
+    {
+        public Expression Instance { get; set; }
+        public IToken MemberTarget { get; set; }
+        public GetFromLocalStruct(IToken token, Expression instance, IToken memberTarget) : base(token)
         {
             Instance = instance;
             MemberTarget = memberTarget;

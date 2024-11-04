@@ -16,6 +16,8 @@ namespace PlatinumC.Parser.Constants
 
         public const string LParen = "LParen";
         public const string RParen = "RParen";
+        public const string LBracket = "LBracket";
+        public const string RBracket = "RBracket";
         public const string Colon = "Colon";
         public const string Comma = "Comma";
         public const string Dot = "Dot";
@@ -58,5 +60,6 @@ namespace PlatinumC.Parser.Constants
         public static string As = "As";
 
         public static string Icon = "Icon";
+        public static string Type = "Type";
     }
 }

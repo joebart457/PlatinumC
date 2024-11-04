@@ -20,6 +20,10 @@ namespace PlatinumC.Shared
         }
 
         public virtual void Visit(X86CompilationContext context) { }
+        public virtual IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            throw new InvalidOperationException();
+        }
     }
 
 
@@ -785,9 +789,9 @@ namespace PlatinumC.Shared
 
     public class TypedAssignment : TypedExpression
     {
-        public IToken AssignmentTarget { get; set; }
+        public TypedExpression AssignmentTarget { get; set; }
         public TypedExpression ValueToAssign { get; set; }
-        public TypedAssignment(Expression originalExpression, ResolvedType resolvedType, IToken assignmentTarget, TypedExpression valueToAssign) : base(originalExpression, resolvedType)
+        public TypedAssignment(Expression originalExpression, ResolvedType resolvedType, TypedExpression assignmentTarget, TypedExpression valueToAssign) : base(originalExpression, resolvedType)
         {
             AssignmentTarget = assignmentTarget;
             ValueToAssign = valueToAssign;
@@ -795,89 +799,25 @@ namespace PlatinumC.Shared
 
         public override void Visit(X86CompilationContext context)
         {
-            var offset = context.GetIdentifierOffset(AssignmentTarget);
-            ValueToAssign.Visit(context);
-            // leave value on the stack instead of popping, then re-pushing
-            context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0)));
-            context.AddInstruction(X86Instructions.Mov(offset, X86Register.eax));
-        }
-    }
+            base.Visit(context);
 
-    public class TypedGlobalAssignment : TypedExpression
-    {
-        public IToken AssignmentTarget { get; set; }
-        public TypedExpression ValueToAssign { get; set; }
-        public TypedGlobalAssignment(Expression originalExpression, ResolvedType resolvedType, IToken assignmentTarget, TypedExpression valueToAssign) : base(originalExpression, resolvedType)
-        {
-            AssignmentTarget = assignmentTarget;
-            ValueToAssign = valueToAssign;
-        }
-
-        public override void Visit(X86CompilationContext context)
-        {
-            var offset = context.GetGlobalOffset(AssignmentTarget);
             ValueToAssign.Visit(context);
+            var offset = AssignmentTarget.GetEvaluatedOffset(context);
+            context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.esp, 0)));
             if (ResolvedType.Is(SupportedType.Byte))
             {
-                // leave value on the stack instead of popping, then re-pushing
-                context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0)));
-                context.AddInstruction(X86Instructions.Mov(offset, X86ByteRegister.al));
-            }else
-            {
-                // leave value on the stack instead of popping, then re-pushing
-                context.AddInstruction(X86Instructions.Mov(X86Register.eax, Offset.Create(X86Register.esp, 0)));
-                context.AddInstruction(X86Instructions.Mov(offset, X86Register.eax));
+                if (offset is RegisterOffset_Byte registerOffset_Byte) context.AddInstruction(X86Instructions.Mov(registerOffset_Byte, X86ByteRegister.bl));
+                else if (offset is SymbolOffset_Byte symbolOffset_Byte) context.AddInstruction(X86Instructions.Mov(symbolOffset_Byte, X86ByteRegister.bl));
+                else throw new InvalidOperationException();
             }
-            
-        }
-    }
-
-    public class TypedDereferenceAssignment : TypedExpression
-    {
-        public TypedDereference AssignmentTarget { get; set; }
-        public TypedExpression ValueToAssign { get; set; }
-        public TypedDereferenceAssignment(Expression originalExpression, ResolvedType resolvedType, TypedDereference assignmentTarget, TypedExpression valueToAssign) : base(originalExpression, resolvedType)
-        {
-            AssignmentTarget = assignmentTarget;
-            ValueToAssign = valueToAssign;
-        }
-
-        public override void Visit(X86CompilationContext context)
-        {
-            base.Visit(context);
-            ValueToAssign.Visit(context);
-            AssignmentTarget.Rhs.Visit(context);
-            context.AddInstruction(X86Instructions.Pop(X86Register.eax));
-            context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0), X86ByteRegister.bl));
-            else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, 0), X86Register.ebx));
-            context.AddInstruction(X86Instructions.Push(X86Register.ebx));
-        }
-    }
-
-    public class TypedMemberAssignment : TypedExpression
-    {
-        public TypedExpression Instance { get; set; }
-        public IToken AssignmentTarget { get; set; }
-        public TypedExpression ValueToAssign { get; set; }
-        public TypedMemberAssignment(Expression originalExpression, ResolvedType resolvedType, TypedExpression instance, IToken assignmentTarget, TypedExpression valueToAssign) : base(originalExpression, resolvedType)
-        {
-            Instance = instance;
-            AssignmentTarget = assignmentTarget;
-            ValueToAssign = valueToAssign;
-        }
-
-        public override void Visit(X86CompilationContext context)
-        {
-            base.Visit(context);
-            var offset = Instance.ResolvedType.GetMemberOffset(AssignmentTarget);
-            Instance.Visit(context);
-            ValueToAssign.Visit(context);
-            context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
-            context.AddInstruction(X86Instructions.Pop(X86Register.eax));
-            if (ResolvedType.Is(SupportedType.Byte))
-                context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, offset), X86ByteRegister.bl));
-            else context.AddInstruction(X86Instructions.Mov(Offset.Create(X86Register.eax, offset), X86Register.ebx));
+            else
+            {
+                if (offset is RegisterOffset registerOffset) context.AddInstruction(X86Instructions.Mov(registerOffset, X86Register.ebx));
+                else if (offset is SymbolOffset symbolOffset) context.AddInstruction(X86Instructions.Mov(symbolOffset, X86Register.ebx));
+                else throw new InvalidOperationException();
+            }
+            // ebx left on stack so no need to push
+                
         }
     }
 
@@ -894,6 +834,11 @@ namespace PlatinumC.Shared
             var offset = context.GetIdentifierOffset(Identifier);
             // Even bytes are stored as at least dword locally
             context.AddInstruction(X86Instructions.Push(offset));
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            return context.GetIdentifierOffset(Identifier);
         }
     }
 
@@ -915,6 +860,13 @@ namespace PlatinumC.Shared
                 context.AddInstruction(X86Instructions.Push(X86Register.eax));
             }
             else context.AddInstruction(X86Instructions.Push(offset));
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            var offset = context.GetGlobalOffset(Identifier);
+            if (ResolvedType.Is(SupportedType.Byte)) return Offset.CreateSymbolByteOffset(offset.Symbol, offset.Offset);
+            return offset;
         }
     }
 
@@ -951,6 +903,8 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Lea(X86Register.eax, offset));
             context.AddInstruction(X86Instructions.Push(X86Register.eax));
         }
+
+
     }
 
     public class TypedDereference : TypedExpression
@@ -969,6 +923,14 @@ namespace PlatinumC.Shared
             if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, 0)));
             else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, 0)));
             context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            Rhs.Visit(context);
+            context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+            if (ResolvedType.Is(SupportedType.Byte)) return Offset.CreateByteOffset(X86Register.eax, 0);
+            return Offset.Create(X86Register.eax, 0);
         }
     }
 
@@ -1068,6 +1030,10 @@ namespace PlatinumC.Shared
             Expression.Visit(context);
         }
 
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            return Expression.GetEvaluatedOffset(context);
+        }
     }
 
     public class TypedGetFromReference : TypedExpression
@@ -1086,9 +1052,62 @@ namespace PlatinumC.Shared
             Lhs.Visit(context);
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             
-            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, Lhs.ResolvedType.GetMemberOffset(MemberTarget))));
-            else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, Lhs.ResolvedType.GetMemberOffset(MemberTarget))));
+            if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget))));
+            else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget))));
             context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            Lhs.Visit(context);
+            context.AddInstruction(X86Instructions.Pop(X86Register.eax));
+            if (ResolvedType.Is(SupportedType.Byte)) return Offset.CreateByteOffset(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget));
+            else return Offset.Create(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget));
+        }
+    }
+
+    public class TypedGetFromLocalStruct : TypedExpression
+    {
+        public TypedExpression Lhs { get; set; }
+        public IToken MemberTarget { get; set; }
+        public TypedGetFromLocalStruct(Expression originalExpression, ResolvedType resolvedType, TypedExpression lhs, IToken memberTarget) : base(originalExpression, resolvedType)
+        {
+            Lhs = lhs;
+            MemberTarget = memberTarget;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            IOffset targetOffset = GetEvaluatedOffset(context);
+
+            if (ResolvedType.Is(SupportedType.Byte))
+            {
+                if (targetOffset is RegisterOffset_Byte byteOffset)
+                {
+                    context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, byteOffset));
+                    context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+                }
+                else if (targetOffset is SymbolOffset_Byte symbolOffset_Byte)
+                {
+                    context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, symbolOffset_Byte));
+                    context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+                }
+                else throw new InvalidOperationException();
+            }
+            else
+            {
+                if (targetOffset is RegisterOffset registerOffset) context.AddInstruction(X86Instructions.Push(registerOffset));
+                else if (targetOffset is SymbolOffset symbolOffset) context.AddInstruction(X86Instructions.Push(symbolOffset));
+                else throw new InvalidOperationException();
+            }
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            IOffset targetOffset = Lhs.GetEvaluatedOffset(context);
+            targetOffset.Offset = targetOffset.Offset + Lhs.ResolvedType.GetMemberOffset(MemberTarget);
+            return targetOffset;
         }
     }
 

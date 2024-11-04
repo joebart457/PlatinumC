@@ -35,11 +35,11 @@ namespace PlatinumC.Shared
             }
 
         }
-        public IToken ClassName { get; set; }
+        public IToken TypeName { get; set; }
         public List<TypedFieldDeclaration> FieldDeclarations { get; set; }
-        public TypedTypeDeclaration(Declaration originalDeclaration, IToken className, List<TypedFieldDeclaration> fieldDeclarations) : base(originalDeclaration)
+        public TypedTypeDeclaration(Declaration originalDeclaration, IToken typeName, List<TypedFieldDeclaration> fieldDeclarations) : base(originalDeclaration)
         {
-            ClassName = className;
+            TypeName = typeName;
             FieldDeclarations = fieldDeclarations;
         }
     }
@@ -86,7 +86,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Label(GetDecoratedFunctionIdentifier()));
             context.AddInstruction(X86Instructions.Push(X86Register.ebp));
             context.AddInstruction(X86Instructions.Mov(X86Register.ebp, X86Register.esp));
-            context.AddInstruction(X86Instructions.Sub(X86Register.esp, 4 * (context.CurrentFunction.LocalVariables.Count + 1)));
+            context.AddInstruction(X86Instructions.Sub(X86Register.esp, context.CurrentFunction.LocalVariables.Sum(x => x.ResolvedType.StackSize()) + 4)); // +4 for stack frame
 
             foreach(var statement in Body)
             {

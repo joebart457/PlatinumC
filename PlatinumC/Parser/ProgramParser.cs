@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using TokenizerCore.Interfaces;
 using TokenizerCore.Models.Constants;
 using static PlatinumC.Shared.FunctionDeclaration;
+using static PlatinumC.Shared.TypeDeclaration;
 
 namespace PlatinumC.Parser
 {
@@ -125,8 +126,28 @@ namespace PlatinumC.Parser
             if (AdvanceIfMatch(TokenTypes.Library)) return ParseImportLibraryDeclaration();
             if (AdvanceIfMatch(TokenTypes.Import)) return ParseImportedFunctionDeclaration();
             if (AdvanceIfMatch(TokenTypes.Global)) return ParseGlobalVariableDeclaration();
+            if (AdvanceIfMatch(TokenTypes.Type)) return ParseTypeDeclaration();
             if (AdvanceIfMatch(TokenTypes.Icon)) return ParseProgramIconDeclaration();
             return ParseFunctionDeclaration();
+        }
+
+        public TypeDeclaration ParseTypeDeclaration()
+        {
+            var typeName = Consume(BuiltinTokenTypes.Word, "expect type name");
+            Consume(TokenTypes.LCurly, "expect type fields list");
+            var fields = new List<FieldDeclaration>();
+            if (!AdvanceIfMatch(TokenTypes.RCurly))
+            {
+                do
+                {
+                    var fieldType = ParseTypeSymbol();
+                    var fieldName = Consume(BuiltinTokenTypes.Word, "expect field name");
+                    Consume(TokenTypes.SemiColon, "expect ; after type field");
+                    fields.Add(new(fieldName, fieldType));
+                } while (!AtEnd() && !Match(TokenTypes.RCurly));
+                Consume(TokenTypes.RCurly, "expect enclosing } in type fields list");
+            }
+            return new TypeDeclaration(typeName, typeName, fields);
         }
 
         public ImportLibraryDeclaration ParseImportLibraryDeclaration()
@@ -316,6 +337,38 @@ namespace PlatinumC.Parser
             return ParseAssignment();
         }
 
+        public Expression ParseAssignment()
+        {
+            var expression = ParseBinary();
+            if (AdvanceIfMatch(TokenTypes.Equal))
+            {
+                var token = Previous();
+                if (expression is Identifier identifier)
+                {
+                    var valueToAssign = ParseExpression();
+                    return new Assignment(identifier.Token, identifier, valueToAssign);
+                }
+                else if (expression is Dereference dereference)
+                {
+                    var valueToAssign = ParseExpression();
+                    return new Assignment(token, expression, valueToAssign);
+                }
+                else if (expression is GetFromReference getFromReference)
+                {
+                    var valueToAssign = ParseExpression();
+                    return new Assignment(getFromReference.MemberTarget, getFromReference, valueToAssign);
+                }
+                else if (expression is GetFromLocalStruct getFromLocalStruct)
+                {
+                    var valueToAssign = ParseExpression();
+                    return new Assignment(getFromLocalStruct.MemberTarget, getFromLocalStruct, valueToAssign);
+                }
+                else throw new ParsingException(Previous(), "unexpected assignment target on left hand side of =");
+            }
+            return expression;
+
+        }
+
         public Expression ParseBinary(int? index = null)
         {
             if (index == null) index = BinaryOperators.Count - 1;
@@ -332,31 +385,12 @@ namespace PlatinumC.Parser
             return expression;
         }
 
-        public Expression ParseAssignment()
-        {
-            var expression = ParseBinary();
-            if (AdvanceIfMatch(TokenTypes.Equal))
-            {
-                if (expression is Identifier identifier)
-                {
-                    var valueToAssign = ParseExpression();
-                    return new Assignment(identifier.Token, null, identifier.Token, valueToAssign);
-                }else if (expression is Dereference dereference)
-                {
-                    var token = Previous();
-                    var valueToAssign = ParseExpression();
-                    return new DereferenceAssignment(token, expression, valueToAssign);
-                }
-                else throw new ParsingException(Previous(), "unexpected assignment target on left hand side of =");
-            }
-            return expression;
 
-        }
 
         public Expression ParseCall()
         {
             var expression = ParseUnary();
-            while (Match(TokenTypes.LParen) || Match(TokenTypes.Arrow))
+            while (Match(TokenTypes.LParen) || Match(TokenTypes.Arrow) || Match(TokenTypes.Dot))
             {
                 if (AdvanceIfMatch(TokenTypes.LParen))
                 {
@@ -374,10 +408,16 @@ namespace PlatinumC.Parser
                         expression = new Call(identifier.Token, identifier.Token, arguments);
                     }
                     else throw new ParsingException(Previous(), "invalid left hand side of call");
-                }else
+                }
+                else if (AdvanceIfMatch(TokenTypes.Dot))
+                {
+                    var memberName = Consume(BuiltinTokenTypes.Word, "expect member name");
+                    expression = new GetFromLocalStruct(memberName, expression, memberName);
+                }
+                else
                 {
                     Advance();
-                    // it is a get expression
+                    // it is a get from reference(pointer) expression
                     // IE struct->member
                     var memberName = Consume(BuiltinTokenTypes.Word, "expect member name");
                     expression = new GetFromReference(memberName, expression, memberName);
@@ -475,6 +515,7 @@ namespace PlatinumC.Parser
                 // for ptr and string typedefs
                 if (supportedType == SupportedType.Ptr) typeSymbol = new TypeSymbol(Previous(), SupportedType.Ptr, new TypeSymbol(Previous(), SupportedType.Void, null));
                 else if (supportedType == SupportedType.String) typeSymbol = new TypeSymbol(Previous(), SupportedType.Ptr, new TypeSymbol(Previous(), SupportedType.Byte, null));
+                else if (supportedType == SupportedType.Custom) typeSymbol = new TypeSymbol(Consume(BuiltinTokenTypes.Word, "expect custom type name"), SupportedType.Custom, null);
                 else typeSymbol = new TypeSymbol(Previous(), supportedType, null);
             } 
             

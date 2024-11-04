@@ -14,6 +14,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
             return Emit();
         }
     }
+    public interface IOffset
+    {
+        public int Offset { get; set; }
+    }
 
     public class Offset
     {
@@ -22,7 +26,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static SymbolOffset CreateSymbolOffset(string symbol, int offset) => new SymbolOffset(symbol, offset);
         public static SymbolOffset_Byte CreateSymbolByteOffset(string symbol, int offset) => new SymbolOffset_Byte(symbol, offset);
     }
-    public class RegisterOffset
+    public class RegisterOffset: IOffset
     {
         public X86Register Register { get; set; }
         public int Offset { get; set; }
@@ -53,7 +57,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class SymbolOffset
+    public class SymbolOffset : IOffset
     {
         public string Symbol { get; set; }
         public int Offset { get; set; }
@@ -84,7 +88,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class SymbolOffset_Byte
+    public class SymbolOffset_Byte : IOffset
     {
         public string Symbol { get; set; }
         public int Offset { get; set; }
@@ -115,7 +119,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
-    public class RegisterOffset_Byte
+    public class RegisterOffset_Byte : IOffset
     {
         public X86Register Register { get; set; }
         public int Offset { get; set; }

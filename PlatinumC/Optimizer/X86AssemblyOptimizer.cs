@@ -505,6 +505,15 @@ namespace PlatinumC.Optimizer
                 InvalidateMemory(dec_Offset.Destination);
                 if (value != null && value.IsImmediate) SetMemory(dec_Offset.Destination, RegisterOffsetOrImmediate.Create(value.ImmediateValue - 1));
             }
+            if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
+            {
+
+            }
+            if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
+            {
+                // TODO we do not track byte offsets
+                //InvalidateMemory(mov_RegisterOffset_Byte_Register__Byte.Destination);
+            }
             return instruction;
         }
 
@@ -1425,6 +1434,13 @@ namespace PlatinumC.Optimizer
                     {
 
                     }
+                    if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
+                    {
+                    }
+                    if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
+                    {
+
+                    }
 
                     optimizedInstructions.Add(TrackInstruction(instruction));
                 }
@@ -1747,6 +1763,13 @@ namespace PlatinumC.Optimizer
             if (instruction is Dec_Offset dec_Offset)
             {
                 if (dec_Offset.Destination.Equals(offset)) return true;
+            }
+            else if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
+            {
+            }
+            else if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
+            {
+                if (mov_RegisterOffset_Byte_Register__Byte.Destination.Equals(offset)) return true;
             }
 
             return IsReferenced(instructions, index + 1, originalOffset, offset, exploredLabels);
@@ -2091,7 +2114,15 @@ namespace PlatinumC.Optimizer
             {
                 if (dec_Offset.Destination.Register == register) return true;
             }
-
+            else if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
+            {
+                if (mov_SymbolOffset_Byte_Register__Byte.Source.ToFullRegister() == register) return true;
+            }
+            else if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
+            {
+                if (mov_RegisterOffset_Byte_Register__Byte.Source.ToFullRegister() == register) return true;
+                if (mov_RegisterOffset_Byte_Register__Byte.Destination.Register == register) return true;
+            }
             return null;
         }
         private bool DoesRegisterLoseIntegrity(X86Instruction instruction, X86Register register)
@@ -2554,6 +2585,14 @@ namespace PlatinumC.Optimizer
             if (instruction is Dec_Register dec_Register)
             {
                 
+            }
+            if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
+            {
+
+            }
+            if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
+            {
+
             }
  * 
  * 

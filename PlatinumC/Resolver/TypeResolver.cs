@@ -1,6 +1,7 @@
 ﻿using ParserLite.Exceptions;
 using PlatinumC.Parser;
 using PlatinumC.Shared;
+using TokenizerCore.Interfaces;
 using static PlatinumC.Shared.TypedFunctionDeclaration;
 
 namespace PlatinumC.Resolver
@@ -16,7 +17,7 @@ namespace PlatinumC.Resolver
         private Dictionary<string, TypedImportLibraryDeclaration> _importedLibraries = new();
         private class LoopInfo {}
         private Stack<LoopInfo> _loops = new();
-
+        private Dictionary<string, ResolvedType> _customTypes = new();
         public ResolverResult ResolveTypes(ParsingResult parsingResult)
         {
             _localVariables = new();
@@ -26,20 +27,31 @@ namespace PlatinumC.Resolver
             _currentFunction = null;
             _importedLibraries = new();
             _loops = new();
+            _customTypes = new();
             _currentFunction = null;
             var resolvedDeclarations = new List<TypedDeclaration>();
             foreach(var declaration in parsingResult.Declarations)
             {
                 if (declaration is ImportLibraryDeclaration importLibraryDeclaration)
                     resolvedDeclarations.Add(Accept(importLibraryDeclaration));
+                if (declaration is TypeDeclaration typeDeclaration)
+                    GatherDefinition(typeDeclaration);
             }
 
             foreach (var declaration in parsingResult.Declarations)
             {
+
+                if (declaration is TypeDeclaration typeDeclaration)
+                    resolvedDeclarations.Add(Accept(typeDeclaration));
+            }
+
+
+            foreach (var declaration in parsingResult.Declarations)
+            {
                 if (declaration is ImportedFunctionDeclaration importedFunctionDeclaration)
-                    GatherDefintion(importedFunctionDeclaration);
+                    GatherDefinition(importedFunctionDeclaration);
                 if (declaration is FunctionDeclaration functionDeclaration)
-                    GatherDefintion(functionDeclaration);
+                    GatherDefinition(functionDeclaration);
             }
 
 
@@ -51,12 +63,14 @@ namespace PlatinumC.Resolver
             return new ResolverResult(resolvedDeclarations);
         }
 
-        internal void GatherDefintion(FunctionDeclaration functionDeclaration)
+        internal void GatherDefinition(FunctionDeclaration functionDeclaration)
         {
             var returnType = Resolve(functionDeclaration.ReturnType);
             var parameters = functionDeclaration.Parameters.Select(x => new TypedParameterDeclaration(x.ParameterName, Resolve(x.ParameterType))).ToList();
             if (parameters.GroupBy(x => x.ParameterName.Lexeme).Any(x => x.Count() > 1)) throw new ParsingException(functionDeclaration.Token, $"parameter names must not repeat");
-
+            var parameterWithCustomType = parameters.Find(x => x.ResolvedType.IsCustomType);
+            if (parameterWithCustomType != null) 
+                throw new ParsingException(parameterWithCustomType.ParameterName, $"custom types cannot be used as function parameters, use pointers to custom types instead. (Parameter: {parameterWithCustomType.ParameterName})");
             var function = new TypedFunctionDeclaration(functionDeclaration, returnType, functionDeclaration.FunctionIdentifier, parameters, new(), false, functionDeclaration.CallingConvention, functionDeclaration.IsExport, functionDeclaration.ExportedAlias);
             if (_functions.ContainsKey(functionDeclaration.FunctionIdentifier.Lexeme) || _importedFunctions.ContainsKey(functionDeclaration.FunctionIdentifier.Lexeme))
                 throw new ParsingException(functionDeclaration.FunctionIdentifier, $"function {functionDeclaration.FunctionIdentifier.Lexeme} is already defined");
@@ -64,12 +78,14 @@ namespace PlatinumC.Resolver
             _functions[functionDeclaration.FunctionIdentifier.Lexeme] = function;
         }
 
-        internal void GatherDefintion(ImportedFunctionDeclaration importedFunctionDeclaration)
+        internal void GatherDefinition(ImportedFunctionDeclaration importedFunctionDeclaration)
         {
             var returnType = Resolve(importedFunctionDeclaration.ReturnType);
             var parameters = importedFunctionDeclaration.Parameters.Select(x => new TypedParameterDeclaration(x.ParameterName, Resolve(x.ParameterType))).ToList();
             if (parameters.GroupBy(x => x.ParameterName.Lexeme).Any(x => x.Count() > 1)) throw new ParsingException(importedFunctionDeclaration.Token, $"parameter names must not repeat");
-
+            var parameterWithCustomType = parameters.Find(x => x.ResolvedType.IsCustomType);
+            if (parameterWithCustomType != null)
+                throw new ParsingException(parameterWithCustomType.ParameterName, $"custom types cannot be used as function parameters, consider splitting into individual fields if external function is defined this way. (Parameter: {parameterWithCustomType.ParameterName})");
             if (!_importedLibraries.ContainsKey(importedFunctionDeclaration.LibraryAlias.Lexeme))
                 throw new ParsingException(importedFunctionDeclaration.LibraryAlias, $"library with alias {importedFunctionDeclaration.LibraryAlias} is not defined");
 
@@ -79,6 +95,31 @@ namespace PlatinumC.Resolver
             _importedFunctions[importedFunction.FunctionIdentifier.Lexeme] = importedFunction;
         }
 
+        internal void GatherDefinition(TypeDeclaration typeDeclaration)
+        {
+            if (_customTypes.ContainsKey(typeDeclaration.TypeName.Lexeme))
+                throw new ParsingException(typeDeclaration.TypeName, $"type with name {typeDeclaration.TypeName.Lexeme} already exists!");
+            
+            _customTypes[typeDeclaration.TypeName.Lexeme] = ResolvedType.Create(typeDeclaration.TypeName, new());
+        }
+
+        internal TypedTypeDeclaration Accept(TypeDeclaration typeDeclaration)
+        {
+            if (!_customTypes.TryGetValue(typeDeclaration.TypeName.Lexeme, out var partialTypeDeclaration))
+                throw new ParsingException(typeDeclaration.TypeName, $"type with name {typeDeclaration.TypeName.Lexeme} does not exist!");
+            var resolvedFields = new List<TypedTypeDeclaration.TypedFieldDeclaration>();
+            foreach (var field in typeDeclaration.FieldDeclarations)
+            {
+                if (resolvedFields.Any(x => x.FieldName.Lexeme == field.FieldName.Lexeme))
+                    throw new ParsingException(field.FieldName, $"field with name {field.FieldName.Lexeme} already exists on type {typeDeclaration.TypeName.Lexeme}");
+                var resolvedType = Resolve(field.TypeSymbol);
+                if (resolvedType.Is(partialTypeDeclaration)) throw new ParsingException(field.FieldName, $"illegal recursive type declaration for type {typeDeclaration.TypeName.Lexeme}, field {field.FieldName.Lexeme}");
+                resolvedFields.Add(new(field.FieldName, resolvedType));
+                partialTypeDeclaration.Fields.Add((field.FieldName.Lexeme, resolvedType));
+            }
+            return new TypedTypeDeclaration(typeDeclaration, typeDeclaration.TypeName, resolvedFields);
+        }
+
 
         private ResolvedType Resolve(TypeSymbol typeSymbol)
         {
@@ -86,6 +127,11 @@ namespace PlatinumC.Resolver
             {
                 if (typeSymbol.UnderlyingType == null) throw new InvalidOperationException();
                 return new ResolvedType(SupportedType.Ptr, Resolve(typeSymbol.UnderlyingType));
+            }
+            else if (typeSymbol.SupportedType == SupportedType.Custom)
+            {
+                if (_customTypes.TryGetValue(typeSymbol.Token.Lexeme, out var resolvedType)) return resolvedType;
+                throw new ParsingException(typeSymbol.Token, $"type {typeSymbol.Token.Lexeme} is not defined");
             }
             return ResolvedType.Create(typeSymbol.SupportedType);
         }
@@ -493,26 +539,12 @@ namespace PlatinumC.Resolver
 
         internal TypedExpression Accept(Assignment assignment)
         {
-            if (assignment.Instance != null) throw new NotImplementedException();
+            var assignmentTarget = assignment.AssignmentTarget.Visit(this);
             var valueToAssign = assignment.ValueToAssign.Visit(this);
-            if(_localVariables.TryGetValue(assignment.AssignmentTarget.Lexeme, out var resolvedType))
-            {
-                if (!resolvedType.Is(valueToAssign.ResolvedType))
-                    throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {resolvedType}");
-                return new TypedAssignment(assignment, resolvedType, assignment.AssignmentTarget, valueToAssign);
-            }
-            var foundParameter = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == assignment.AssignmentTarget.Lexeme);
-            if (foundParameter == null)
-            {
-                if (_globalVariables.TryGetValue(assignment.AssignmentTarget.Lexeme, out var globalVariableType))
-                {
-                    if (!globalVariableType.Is(valueToAssign.ResolvedType))
-                        throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {resolvedType}");
-                    return new TypedGlobalAssignment(assignment, globalVariableType, assignment.AssignmentTarget, valueToAssign);
-                }
-                throw new ParsingException(assignment.AssignmentTarget, $"identifier {assignment.AssignmentTarget.Lexeme} is not defined");
-            }
-            return new TypedAssignment(assignment, foundParameter.ResolvedType, assignment.AssignmentTarget, valueToAssign);
+            if (!assignmentTarget.ResolvedType.Is(valueToAssign.ResolvedType)) 
+                throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {assignmentTarget.ResolvedType}");
+
+            return new TypedAssignment(assignment, assignmentTarget.ResolvedType, assignmentTarget, valueToAssign);
         }
 
         internal TypedStatement Accept(ExpressionStatement expressionStatement)
@@ -546,20 +578,26 @@ namespace PlatinumC.Resolver
 
         internal TypedExpression Accept(GetFromReference getFromReference)
         {
-            throw new NotImplementedException();
+            var instance = getFromReference.Instance.Visit(this);
+            if (!instance.ResolvedType.IsPointer || (!instance.ResolvedType.UnderlyingType!.IsCustomType))
+                throw new ParsingException(getFromReference.Token, $"left hand side of field access must be pointer");
+            var field = instance.ResolvedType.UnderlyingType!.Fields.Find(x => x.fieldName == getFromReference.MemberTarget.Lexeme);
+            if (field == default) throw new ParsingException(getFromReference.MemberTarget, $"field {getFromReference.MemberTarget.Lexeme} does not exist on type {instance.ResolvedType.UnderlyingType}");
+
+            return new TypedGetFromReference(getFromReference, field.fieldType, instance, getFromReference.MemberTarget);
         }
 
-        internal TypedExpression Accept(DereferenceAssignment dereferenceAssignment)
+        internal TypedExpression Accept(GetFromLocalStruct getFromLocalStruct)
         {
-            var valueToAssign = dereferenceAssignment.ValueToAssign.Visit(this);
-            var assignmentTarget = dereferenceAssignment.AssignmentTarget.Visit(this);
-            if (!(assignmentTarget is TypedDereference typedDereference)) throw new ParsingException(dereferenceAssignment.Token, "unexpected left hand side of assignment");
+            var instance = getFromLocalStruct.Instance.Visit(this);
+            if (!instance.ResolvedType.IsCustomType)
+                throw new ParsingException(getFromLocalStruct.Token, $"type {instance.ResolvedType} does not contain any members");
+            var field = instance.ResolvedType.Fields.Find(x => x.fieldName == getFromLocalStruct.MemberTarget.Lexeme);
+            if (field == default) throw new ParsingException(getFromLocalStruct.MemberTarget, $"field {getFromLocalStruct.MemberTarget.Lexeme} does not exist on type {instance.ResolvedType.UnderlyingType}");
 
-            if (!assignmentTarget.ResolvedType.Is(valueToAssign.ResolvedType))
-                throw new ParsingException(dereferenceAssignment.Token, $"expect value of type {assignmentTarget.ResolvedType} but got {valueToAssign.ResolvedType} on right hand side of assignment");
-            return new TypedDereferenceAssignment(dereferenceAssignment, assignmentTarget.ResolvedType, typedDereference, valueToAssign);
+            return new TypedGetFromLocalStruct(getFromLocalStruct, field.fieldType, instance, getFromLocalStruct.MemberTarget);
         }
-
+   
         internal TypedExpression Accept(UnaryNegation unaryNegation)
         {
             var rhs = unaryNegation.Rhs.Visit(this);

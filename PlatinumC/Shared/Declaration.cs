@@ -32,17 +32,17 @@ namespace PlatinumC.Shared
             }
 
         }
-        public IToken ClassName { get; set; }
+        public IToken TypeName { get; set; }
         public List<FieldDeclaration> FieldDeclarations { get; set; }
-        public TypeDeclaration(IToken token, IToken className, List<FieldDeclaration> fieldDeclarations) : base(token)
+        public TypeDeclaration(IToken token, IToken typeName, List<FieldDeclaration> fieldDeclarations) : base(token)
         {
-            ClassName = className;
+            TypeName = typeName;
             FieldDeclarations = fieldDeclarations;
         }
 
         public override TypedDeclaration Visit(TypeResolver resolver)
         {
-            throw new NotImplementedException();
+            return resolver.Accept(this);
         }
     }
 

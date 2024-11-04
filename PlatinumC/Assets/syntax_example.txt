@@ -8,8 +8,19 @@ library msvcrt 'msvcrt.dll'
 import msvcrt cdecl void printf(string msg);
 import msvcrt cdecl void printf_num(string msg, int num) from 'printf';
 import msvcrt cdecl void printf_float(string msg, float num1, int num) from 'printf';
+import msvcrt cdecl void* malloc(int bytes);
+
 
 global int TestGlobal = 0;
+
+type MyType
+{
+	int x;
+	float y;
+	byte testByte;
+	struct MyType* selfReferrentialPtr;
+	int* intPtr;
+}
 
 void Main(){
 	ptr hConsole = GetStdHandle(-11);
@@ -47,7 +58,14 @@ void Main(){
 	if (fY >= 10.02f){
 		printf_float("float's work and value was %f", fY, 0);
 	}
+
+	struct MyType* myT = (struct MyType*)malloc(17);
+	AssignXViaParent(myT);
+	printf_num("structs work %d", myT->x);
+	(*myT).x = 9;
+	printf_num("structs work %d", myT->x);
 	ExitProcess(0);
+
 }
 
 void SayHi(){
@@ -57,4 +75,10 @@ void SayHi(){
 
 int AddOne(int number){
 	return number + 1;
+}
+
+void AssignXViaParent(struct MyType* myType){
+	if (myType != 0){
+		myType->x = 37;
+	}
 }

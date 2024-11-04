@@ -33,6 +33,10 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Mov_SymbolOffset_Register__Byte Mov(SymbolOffset destination, X86ByteRegister source) => new Mov_SymbolOffset_Register__Byte(destination, source);
         public static Mov_SymbolOffset_Immediate Mov(SymbolOffset destination, int immediateValue) => new Mov_SymbolOffset_Immediate(destination, immediateValue);
 
+        public static Mov_SymbolOffset_Byte_Register__Byte Mov(SymbolOffset_Byte destination, X86ByteRegister source) => new Mov_SymbolOffset_Byte_Register__Byte(destination, source);
+        public static Mov_RegisterOffset_Byte_Register__Byte Mov(RegisterOffset_Byte destination, X86ByteRegister source) => new Mov_RegisterOffset_Byte_Register__Byte(destination, source);
+
+
         public static Mov_Offset_Register__Byte Mov(RegisterOffset destination, X86ByteRegister source) => new Mov_Offset_Register__Byte(destination, source);
         public static Movsx_Register_Offset Movsx(X86Register destination, RegisterOffset_Byte source) => new Movsx_Register_Offset(destination, source);
         public static Movsx_Register_SymbolOffset__Byte Movsx(X86Register destination, SymbolOffset_Byte source) => new Movsx_Register_SymbolOffset__Byte(destination, source);
