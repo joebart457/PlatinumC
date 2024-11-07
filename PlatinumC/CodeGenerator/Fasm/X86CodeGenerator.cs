@@ -1,11 +1,6 @@
 ﻿using PlatinumC.Compiler;
 using PlatinumC.Extensions;
-using System.Reflection.PortableExecutable;
-using System.Security.Cryptography;
 using System.Text;
-using static PlatinumC.Compiler.X86CompilationContext;
-using static System.Collections.Specialized.BitVector32;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PlatinumC.CodeGenerator.Fasm
 {
