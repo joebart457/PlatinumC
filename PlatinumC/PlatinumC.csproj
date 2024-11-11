@@ -11,6 +11,8 @@
 	<SelfContained>true</SelfContained>
 	<RuntimeIdentifier>win-x86</RuntimeIdentifier>
 	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	  <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +20,12 @@
     <PackageReference Include="CliParser" Version="3.0.0" />
     <PackageReference Include="ParserLite" Version="3.1.0" />
   </ItemGroup>
-
+<ItemGroup>
+    <Content Include="FASM.DLL">
+        <Pack>true</Pack>
+        <PackagePath>lib\$(TargetFramework)</PackagePath>
+    </Content>
+</ItemGroup>
   <ItemGroup>
     <Folder Include="Assemblers\Fasm\" />
   </ItemGroup>

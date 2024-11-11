@@ -1,11 +1,12 @@
 ﻿using CliParser;
 using Logger;
+using PlatinumC.CodeGenerator.Fasm;
 using PlatinumC.Compiler;
 
 namespace PlatinumC.Services
 {
     [Entry("PlatinumC.exe")]
-    internal class StartupService
+    public class StartupService
     {
         [Command]
         public int Compile(
@@ -46,6 +47,34 @@ namespace PlatinumC.Services
             var compiler = new X86ProgramCompiler();
 
             var result = compiler.EmitBinary(compilationOptions);
+
+            if (result != null)
+            {
+                CliLogger.LogError(result);
+                return -1;
+            }
+            return 0;
+        }
+
+        [Command("fasm")]
+        public int RunFasm(      
+           [Option("assemblyPath", "a", "the path of the input assembly code.")] string? assemblyPath = null,
+           [Option("compilationMemoryBuffer", "mb", "size of memory in bytes the compiler will use for assembly")] int compilationMemoryBuffer = 100000,
+           [Option("assemblyPasses", "na", "number of passes the assembler is allowed to use when attempting to generate final binary")] int assemblyPasses = 100)
+        {           
+
+            var compilationOptions = new CompilationOptions()
+            {
+                AssemblyPath = assemblyPath ?? "",
+                AssemblerOptions = new()
+                {
+                    EnableInMemoryAssembly = true,
+                    MemorySize = compilationMemoryBuffer,
+                    PassesLimit = assemblyPasses,
+                }
+            };
+
+            var result = FasmDllService.RunFasm(compilationOptions);
 
             if (result != null)
             {
