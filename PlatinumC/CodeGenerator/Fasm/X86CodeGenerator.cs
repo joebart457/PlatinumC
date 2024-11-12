@@ -200,10 +200,6 @@ namespace PlatinumC.CodeGenerator.Fasm
             return FasmDllService.RunFasmInMemory(sb, data.CompilationOptions);
         }
 
-        private static string? GenerateExecutable(CompilationOptions options)
-        {
-            return FasmService.RunFasm(options);
-        }
 
         private static void SantizeAssemblyFilePath(CompilationOptions options)
         {
