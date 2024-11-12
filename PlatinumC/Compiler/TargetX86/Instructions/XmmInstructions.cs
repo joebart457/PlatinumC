@@ -33,6 +33,22 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         }
     }
 
+    public class Movss_Register_Register : X86Instruction
+    {
+        public XmmRegister Destination { get; set; }
+        public XmmRegister Source { get; set; }
+        public Movss_Register_Register(XmmRegister destination, XmmRegister source)
+        {
+            Destination = destination;
+            Source = source;
+        }
+
+        public override string Emit()
+        {
+            return $"movss {Destination}, {Source}";
+        }
+    }
+
 
     public class Comiss_Register_Offset : X86Instruction
     {

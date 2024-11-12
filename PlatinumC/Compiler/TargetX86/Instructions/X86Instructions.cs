@@ -101,6 +101,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
 
         public static Movss_Offset_Register Movss(RegisterOffset destination, XmmRegister source) => new Movss_Offset_Register(destination, source);
         public static Movss_Register_Offset Movss(XmmRegister destination, RegisterOffset source) => new Movss_Register_Offset(destination, source);
+        public static Movss_Register_Register Movss(XmmRegister destination, XmmRegister source) => new Movss_Register_Register(destination, source);
         public static Comiss_Register_Offset Comiss(XmmRegister destination, RegisterOffset source) => new Comiss_Register_Offset(destination, source);
         public static Comiss_Register_Register Comiss(XmmRegister destination, XmmRegister source) => new Comiss_Register_Register(destination, source);
         public static Ucomiss_Register_Register Ucomiss(XmmRegister destination, XmmRegister source) => new Ucomiss_Register_Register(destination, source);

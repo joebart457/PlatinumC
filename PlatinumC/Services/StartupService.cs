@@ -58,14 +58,14 @@ namespace PlatinumC.Services
 
         [Command("fasm")]
         public int RunFasm(      
-           [Option("assemblyPath", "a", "the path of the input assembly code.")] string? assemblyPath = null,
+           [Option("assemblyPath", "a", "the path of the input assembly code.")] string assemblyPath,
            [Option("compilationMemoryBuffer", "mb", "size of memory in bytes the compiler will use for assembly")] int compilationMemoryBuffer = 100000,
            [Option("assemblyPasses", "na", "number of passes the assembler is allowed to use when attempting to generate final binary")] int assemblyPasses = 100)
         {           
 
             var compilationOptions = new CompilationOptions()
             {
-                AssemblyPath = assemblyPath ?? "",
+                AssemblyPath = assemblyPath,
                 AssemblerOptions = new()
                 {
                     EnableInMemoryAssembly = true,

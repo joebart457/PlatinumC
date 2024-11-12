@@ -46,10 +46,54 @@ namespace PlatinumC.Optimizer
             public static RegisterOffsetOrImmediate Create(int immediate) => new RegisterOffsetOrImmediate(immediate, null);
             public static RegisterOffsetOrImmediate Create(RegisterOffset registerOffset) => new RegisterOffsetOrImmediate(null, registerOffset);
         }
-        private Dictionary<X86Register, RegisterOffsetOrImmediate> _registerValues = new();
-        private Dictionary<RegisterOffset, RegisterOffsetOrImmediate> _memoryMap = new();
-        private Dictionary<SymbolOffset, RegisterOffsetOrImmediate> _globalMemoryMap = new();
 
+        private class MemoryLocationOrConstantValue
+        {
+            // represents equivalency to a memory offset or a known immediate value
+            private IOffset? _memoryLocation;
+            private object? _immediateValue;
+            public IOffset MemoryLocation => _memoryLocation ?? throw new NullReferenceException(nameof(MemoryLocation));
+            public object ImmediateValue => _immediateValue ?? throw new NullReferenceException(nameof(ImmediateValue));
+
+
+            public bool IsImmediateValue => _immediateValue != null;
+            public bool IsMemoryOffset => _memoryLocation != null;
+            public bool IsRegisterOffset => _memoryLocation is RegisterOffset;
+            public RegisterOffset RegisterOffset => _memoryLocation as RegisterOffset ?? throw new NullReferenceException(nameof(RegisterOffset));
+            public MemoryLocationOrConstantValue(IOffset memoryLocation)
+            {
+                _memoryLocation = memoryLocation;
+                _immediateValue = null;
+            }
+            public MemoryLocationOrConstantValue(object value)
+            {
+                _immediateValue = value;
+                _memoryLocation = null;
+            }
+
+            public bool TryGetValue<Ty>(out Ty? value)
+            {
+                value = default;
+                if (!IsImmediateValue) return false;
+                if (ImmediateValue is Ty tyVal)
+                {
+                    value = tyVal;
+                    return true;
+                }
+                return false;
+            }
+
+            public static MemoryLocationOrConstantValue Create(IOffset offset) => new MemoryLocationOrConstantValue(offset);
+            public static MemoryLocationOrConstantValue Create(int value) => new MemoryLocationOrConstantValue(value);
+            public static MemoryLocationOrConstantValue Create(float value) => new MemoryLocationOrConstantValue(value);
+            public static MemoryLocationOrConstantValue Create(byte value) => new MemoryLocationOrConstantValue(value);
+
+        }
+
+        private Dictionary<X86Register, MemoryLocationOrConstantValue> _registerValues = new();
+        private Dictionary<XmmRegister, MemoryLocationOrConstantValue> _xmmRegisterValues = new();
+        private Dictionary<IOffset, MemoryLocationOrConstantValue> _memoryMap = new();
+        private Stack<MemoryLocationOrConstantValue> _fpuStack = new();
         private RegisterOffset TopOfStack => Offset.Create(X86Register.esp, 0);
 
         public CompilationResult Optimize(CompilationResult compilationResult)
@@ -64,68 +108,60 @@ namespace PlatinumC.Optimizer
         private void WipeRegister(X86Register register)
         {
             _registerValues.Remove(register);
-            WipeMemory(register);
-            foreach (var key in _registerValues.Keys)
-            {
-                if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset!.Register == register)
-                {
-                    _registerValues.Remove(key);
-                }
-            }
         }
 
-        private void InvalidateMemory(RegisterOffset registerOffset)
+        private void WipeRegister(XmmRegister register)
         {
-            _memoryMap.Remove(registerOffset);
+            _xmmRegisterValues.Remove(register);
+        }
+
+        private void InvalidateMemory(IOffset offset)
+        {
+            if (offset is SymbolOffset_Byte symbolOffset_Byte)
+            {
+                // still need to invalidate memory for byte offsets since it is part of larger chunk of tracked memory
+                offset = Offset.CreateSymbolOffset(symbolOffset_Byte.Symbol, symbolOffset_Byte.Offset);
+            }
+            _memoryMap.Remove(offset);
             foreach (var key in _memoryMap.Keys)
             {
-                if (_memoryMap[key].IsRegisterOffset && _memoryMap[key].RegisterOffset.Equals(registerOffset))
+                if (_memoryMap[key].IsMemoryOffset && _memoryMap[key].MemoryLocation.Equals(offset))
                 {
                     _memoryMap.Remove(key);
                 }
             }
             foreach(var key in _registerValues.Keys)
             {
-                if (_registerValues[key].IsRegisterOffset && _registerValues[key].Equals(registerOffset))
+                if (_registerValues[key].IsMemoryOffset && _registerValues[key].Equals(offset))
                     _registerValues.Remove(key);
             }
-        }
-
-        private void InvalidateMemory(SymbolOffset symbolOffset)
-        {
-            _globalMemoryMap.Remove(symbolOffset);
-        }
-
-        private void WipeMemory(X86Register register)
-        {
-
-            foreach (var key in _memoryMap.Keys)
+            foreach (var key in _xmmRegisterValues.Keys)
             {
-                if (key.Register == register || (_memoryMap[key].IsRegisterOffset && _memoryMap[key].RegisterOffset!.Register == register))
-                {
-                    _memoryMap.Remove(key);
-                }
+                if (_xmmRegisterValues[key].IsMemoryOffset && _xmmRegisterValues[key].Equals(offset))
+                    _xmmRegisterValues.Remove(key);
             }
         }
 
+       
 
-        private void PushStack(RegisterOffsetOrImmediate? registerOffsetOrImmediate)
+
+        private void PushStack(MemoryLocationOrConstantValue? memoryLocationOrConstantValue)
         {
             foreach(var key in _registerValues.Keys)
             {
                 if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Register == X86Register.esp)
                 {
-                    _registerValues[key] = RegisterOffsetOrImmediate.Create(Offset.Create(X86Register.esp, _registerValues[key].RegisterOffset.Offset + 4));
+                    _registerValues[key] = MemoryLocationOrConstantValue.Create(Offset.Create(X86Register.esp, _registerValues[key].RegisterOffset.Offset + 4));
                 }
             }
             foreach (var key in _memoryMap.Keys)
             {
                 if (_memoryMap[key].IsRegisterOffset && _memoryMap[key].RegisterOffset.Register == X86Register.esp)
                 {
-                    _memoryMap[key] = RegisterOffsetOrImmediate.Create(Offset.Create(X86Register.esp, _memoryMap[key].RegisterOffset.Offset + 4));
+                    _memoryMap[key] = MemoryLocationOrConstantValue.Create(Offset.Create(X86Register.esp, _memoryMap[key].RegisterOffset.Offset + 4));
                 }
             }
-            if (registerOffsetOrImmediate != null) _memoryMap[TopOfStack] = registerOffsetOrImmediate;
+            if (memoryLocationOrConstantValue != null) _memoryMap[TopOfStack] = memoryLocationOrConstantValue;
             else _memoryMap.Remove(TopOfStack);
         }
 
@@ -144,38 +180,38 @@ namespace PlatinumC.Optimizer
             {
                 if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Register == register)
                 {
-                    _registerValues[key] = RegisterOffsetOrImmediate.Create(Offset.Create(register, _registerValues[key].RegisterOffset.Offset + offset));
+                    _registerValues[key] = MemoryLocationOrConstantValue.Create(Offset.Create(register, _registerValues[key].RegisterOffset.Offset + offset));
                 }
             }
             foreach (var key in _memoryMap.Keys)
             {
                 if (_memoryMap[key].IsRegisterOffset && _memoryMap[key].RegisterOffset.Register == register)
                 {
-                    _memoryMap[key] = RegisterOffsetOrImmediate.Create(Offset.Create(X86Register.esp, _memoryMap[key].RegisterOffset.Offset + offset));
+                    _memoryMap[key] = MemoryLocationOrConstantValue.Create(Offset.Create(X86Register.esp, _memoryMap[key].RegisterOffset.Offset + offset));
                 }
             }
         }
 
-        private void SetMemory(RegisterOffset offset, RegisterOffsetOrImmediate registerOffsetOrImmediate)
+        private void SetMemory(IOffset offset, MemoryLocationOrConstantValue memoryLocationOrConstantValue)
         {
-            _memoryMap[offset] = registerOffsetOrImmediate;
+            _memoryMap[offset] = memoryLocationOrConstantValue;
         }
 
-        private void SetMemory(SymbolOffset offset, RegisterOffsetOrImmediate registerOffsetOrImmediate)
-        {
-            _globalMemoryMap[offset] = registerOffsetOrImmediate;
-        }
-
-        private void SetRegister(X86Register register, RegisterOffsetOrImmediate registerOffsetOrImmediate)
+        private void SetRegister(X86Register register, MemoryLocationOrConstantValue registerOffsetOrImmediate)
         {
             _registerValues[register] = registerOffsetOrImmediate;
         }
 
+        private void SetRegister(XmmRegister register, MemoryLocationOrConstantValue registerOffsetOrImmediate)
+        {
+            _xmmRegisterValues[register] = registerOffsetOrImmediate;
+        }
+
         private void AddRegister(X86Register register, int valueToAdd)
         {
-            if (_registerValues.TryGetValue(register, out var value) && value.IsImmediate)
+            if (_registerValues.TryGetValue(register, out var value) && value.TryGetValue(out int immediateValue))
             {
-                SetRegister(register, RegisterOffsetOrImmediate.Create(value.ImmediateValue + valueToAdd));
+                SetRegister(register, MemoryLocationOrConstantValue.Create(immediateValue + valueToAdd));
             }
             else _registerValues.Remove(register);
             AdjustMemory(register, -valueToAdd);
@@ -183,9 +219,9 @@ namespace PlatinumC.Optimizer
 
         private void SubtractRegister(X86Register register, int valueToSubtract)
         {
-            if (_registerValues.TryGetValue(register, out var value) && value.IsImmediate)
+            if (_registerValues.TryGetValue(register, out var value) && value.TryGetValue(out int immediateValue))
             {
-                SetRegister(register, RegisterOffsetOrImmediate.Create(value.ImmediateValue - valueToSubtract));
+                SetRegister(register, MemoryLocationOrConstantValue.Create(immediateValue - valueToSubtract));
             }
             else _registerValues.Remove(register);
             AdjustMemory(register, valueToSubtract);
@@ -208,7 +244,7 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Push_Offset push_Offset)
             {
-                PushStack(RegisterOffsetOrImmediate.Create(push_Offset.Offset));
+                PushStack(MemoryLocationOrConstantValue.Create(push_Offset.Offset));
             }
             if (instruction is Push_Address push_Address)
             {
@@ -216,7 +252,7 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Push_Immediate<int> push_Immediate)
             {
-                PushStack(RegisterOffsetOrImmediate.Create(push_Immediate.Immediate));
+                PushStack(MemoryLocationOrConstantValue.Create(push_Immediate.Immediate));
             }
             if (instruction is Lea_Register_Offset lea_Register_Offset)
             {
@@ -225,7 +261,7 @@ namespace PlatinumC.Optimizer
             if (instruction is Mov_Register_Offset mov_Register_Offset)
             {
                 WipeRegister(mov_Register_Offset.Destination);
-                _registerValues[mov_Register_Offset.Destination] = RegisterOffsetOrImmediate.Create(mov_Register_Offset.Source);
+                _registerValues[mov_Register_Offset.Destination] = MemoryLocationOrConstantValue.Create(mov_Register_Offset.Source);
             }
             if (instruction is Mov_Offset_Register mov_Offset_Register)
             {
@@ -238,7 +274,7 @@ namespace PlatinumC.Optimizer
             if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
             {
                 InvalidateMemory(mov_Offset_Immediate.Destination);
-                SetMemory(mov_Offset_Immediate.Destination, RegisterOffsetOrImmediate.Create(mov_Offset_Immediate.Immediate));
+                SetMemory(mov_Offset_Immediate.Destination, MemoryLocationOrConstantValue.Create(mov_Offset_Immediate.Immediate));
             }
             if (instruction is Mov_Register_Register mov_Register_Register)
             {
@@ -251,7 +287,7 @@ namespace PlatinumC.Optimizer
             if (instruction is Mov_Register_Immediate mov_Register_Immediate)
             {
                 WipeRegister(mov_Register_Immediate.Destination);
-                SetRegister(mov_Register_Immediate.Destination, RegisterOffsetOrImmediate.Create(mov_Register_Immediate.ImmediateValue));
+                SetRegister(mov_Register_Immediate.Destination, MemoryLocationOrConstantValue.Create(mov_Register_Immediate.ImmediateValue));
             }
             if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
             {
@@ -268,14 +304,12 @@ namespace PlatinumC.Optimizer
             if (instruction is Sub_Register_Register sub_Register_Register)
             {
                 _registerValues.TryGetValue(sub_Register_Register.Source, out var sourceValue);
-                if (sourceValue?.IsImmediate == true)
+                if (sourceValue?.TryGetValue(out int value) == true)
                 {
-                    SubtractRegister(sub_Register_Register.Destination, sourceValue.ImmediateValue);
+                    SubtractRegister(sub_Register_Register.Destination, value);
                 }else
                 {
                     WipeRegister(sub_Register_Register.Destination);
-                    if (sourceValue?.IsRegisterOffset == true)
-                        SetRegister(sub_Register_Register.Destination, RegisterOffsetOrImmediate.Create(sourceValue.RegisterOffset));
                 }
             }
             if (instruction is Add_Register_Immediate add_Register_Immediate)
@@ -285,15 +319,13 @@ namespace PlatinumC.Optimizer
             if (instruction is Add_Register_Register add_Register_Register)
             {
                 _registerValues.TryGetValue(add_Register_Register.Source, out var sourceValue);
-                if (sourceValue?.IsImmediate == true)
+                if (sourceValue?.TryGetValue(out int immediateValue) == true)
                 {
-                    AddRegister(add_Register_Register.Destination, sourceValue.ImmediateValue);
+                    AddRegister(add_Register_Register.Destination, immediateValue);
                 }
                 else
                 {
                     WipeRegister(add_Register_Register.Destination);
-                    if (sourceValue?.IsRegisterOffset == true)
-                        SetRegister(add_Register_Register.Destination, RegisterOffsetOrImmediate.Create(sourceValue.RegisterOffset));
                 }
             }
             if (instruction is And_Register_Register and_Register_Register)
@@ -308,7 +340,7 @@ namespace PlatinumC.Optimizer
             {
                 WipeRegister(xor_Register_Register.Destination);
                 if (xor_Register_Register.Destination == xor_Register_Register.Source)
-                    SetRegister(xor_Register_Register.Destination, RegisterOffsetOrImmediate.Create(0));
+                    SetRegister(xor_Register_Register.Destination, MemoryLocationOrConstantValue.Create(0));
             }
             if (instruction is Pop_Register pop_Register)
             {
@@ -316,7 +348,18 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Neg_Offset neg_Offset)
             {
-                InvalidateMemory(neg_Offset.Operand);
+                if (_memoryMap.TryGetValue(neg_Offset.Operand, out var value) && value.TryGetValue(out int immediateValue))
+                {
+                    InvalidateMemory(neg_Offset.Operand);
+                    SetMemory(neg_Offset.Operand, MemoryLocationOrConstantValue.Create(-immediateValue));
+                }
+                else if (_memoryMap.TryGetValue(neg_Offset.Operand, out var memoryValue) && memoryValue.TryGetValue(out float immediateFloatValue))
+                {
+                    InvalidateMemory(neg_Offset.Operand);
+                    SetMemory(neg_Offset.Operand, MemoryLocationOrConstantValue.Create(-immediateFloatValue));
+                }
+                else InvalidateMemory(neg_Offset.Operand);
+
             }
             if (instruction is Not_Offset not_Offset)
             {
@@ -332,30 +375,25 @@ namespace PlatinumC.Optimizer
                 _registerValues.TryGetValue(imul_Register_Register.Destination, out var destinationValue);
                 _registerValues.TryGetValue(imul_Register_Register.Source, out var sourceValue);
                 WipeRegister(imul_Register_Register.Destination);
-                if (sourceValue?.IsImmediate == true)
+                if (sourceValue?.TryGetValue(out int immediateSourceValue) == true)
                 {
-                    if (destinationValue?.IsImmediate == true)
-                        SetRegister(imul_Register_Register.Destination, RegisterOffsetOrImmediate.Create(destinationValue.ImmediateValue * sourceValue.ImmediateValue));
-                }
-                else
-                {
-                    if (sourceValue?.IsRegisterOffset == true)
-                        SetRegister(imul_Register_Register.Destination, RegisterOffsetOrImmediate.Create(sourceValue.RegisterOffset));
+                    if (destinationValue?.TryGetValue(out int immediateDestinationValue) == true)
+                        SetRegister(imul_Register_Register.Destination, MemoryLocationOrConstantValue.Create(immediateDestinationValue * immediateSourceValue));
                 }
             }
             if (instruction is IMul_Register_Immediate imul_Register_Immediate)
             {
                 WipeRegister(imul_Register_Immediate.Destination);
-                if (_registerValues.TryGetValue(imul_Register_Immediate.Destination, out var value) && value.IsImmediate)
+                if (_registerValues.TryGetValue(imul_Register_Immediate.Destination, out var value) && value.TryGetValue(out int immediateValue))
                 {
-                    SetRegister(imul_Register_Immediate.Destination, RegisterOffsetOrImmediate.Create(value.ImmediateValue * imul_Register_Immediate.Immediate));
+                    SetRegister(imul_Register_Immediate.Destination, MemoryLocationOrConstantValue.Create(immediateValue * imul_Register_Immediate.Immediate));
                 }
             }
             if (instruction is Add_Register_Offset add_Register_Offset)
             {
-                if (_registerValues.TryGetValue(add_Register_Offset.Destination, out var value) && value.IsImmediate)
+                if (_registerValues.TryGetValue(add_Register_Offset.Destination, out var value) && value.TryGetValue(out int immediateValue))
                 {
-                    AddRegister(add_Register_Offset.Destination, value.ImmediateValue);
+                    AddRegister(add_Register_Offset.Destination, immediateValue);
                 }
                 else WipeRegister(add_Register_Offset.Destination);
             }
@@ -363,6 +401,8 @@ namespace PlatinumC.Optimizer
             {
                 _memoryMap.Clear();
                 _registerValues.Clear();
+                _xmmRegisterValues.Clear();
+                _fpuStack.Clear();
             }
             if (instruction is Test_Register_Register test_Register_Register)
             {
@@ -390,36 +430,64 @@ namespace PlatinumC.Optimizer
                 WipeRegister(X86Register.ebx);
                 WipeRegister(X86Register.ecx);
                 WipeRegister(X86Register.edx);
+                WipeRegister(XmmRegister.xmm0);
+                WipeRegister(XmmRegister.xmm1);
+                _fpuStack.Clear();
             }
             if (instruction is Label label)
             {
                 _memoryMap.Clear();
                 _registerValues.Clear();
+                _xmmRegisterValues.Clear();
             }
             if (instruction is Ret ret)
             {
                 _memoryMap.Clear();
                 _registerValues.Clear();
+                _xmmRegisterValues.Clear();
             }
             if (instruction is Ret_Immediate ret_Immediate)
             {
                 _memoryMap.Clear();
                 _registerValues.Clear();
+                _xmmRegisterValues.Clear();
             }
             if (instruction is Fstp_Offset fstp_Offset)
             {
                 InvalidateMemory(fstp_Offset.Destination);
+                if (_fpuStack.TryPop(out var trackedValue))
+                {
+                    SetMemory(fstp_Offset.Destination, trackedValue);
+                }
             } 
             if (instruction is Fld_Offset fld_Offset)
             {
-
+                _fpuStack.Push(MemoryLocationOrConstantValue.Create(fld_Offset.Source));
             }
             if (instruction is Movss_Offset_Register movss_Offset_Register)
             {
-                InvalidateMemory(movss_Offset_Register.Destination);
+                if (_xmmRegisterValues.TryGetValue(movss_Offset_Register.Source, out var trackedValue))
+                {
+                    InvalidateMemory(movss_Offset_Register.Destination);
+                    SetMemory(movss_Offset_Register.Destination, trackedValue);
+                }
+                else InvalidateMemory(movss_Offset_Register.Destination);
             }
             if (instruction is Movss_Register_Offset movss_Register_Offset)
             {
+                WipeRegister(movss_Register_Offset.Destination);
+                if (_memoryMap.TryGetValue(movss_Register_Offset.Source, out var trackedValue))
+                {
+                    SetRegister(movss_Register_Offset.Destination, trackedValue);
+                }
+            }
+            if (instruction is Movss_Register_Register movss_Register_Register)
+            {
+                WipeRegister(movss_Register_Register.Destination);
+                if (_xmmRegisterValues.TryGetValue(movss_Register_Register.Source, out var trackedValue))
+                {
+                    SetRegister(movss_Register_Register.Destination, trackedValue);
+                }
             }
             if (instruction is Comiss_Register_Offset comiss_Register_Offset)
             {
@@ -435,23 +503,47 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Addss_Register_Offset addss_Register_Offset)
             {
-
+                if (_xmmRegisterValues.TryGetValue(addss_Register_Offset.Destination, out var destinationValue) && destinationValue.TryGetValue(out float destinationFloatValue) 
+                    && _memoryMap.TryGetValue(addss_Register_Offset.Source, out var sourceValue) && sourceValue.TryGetValue(out float sourceFloatValue))
+                {
+                    WipeRegister(addss_Register_Offset.Destination);
+                    SetRegister(addss_Register_Offset.Destination, MemoryLocationOrConstantValue.Create(destinationFloatValue + sourceFloatValue));
+                } 
+                else WipeRegister(addss_Register_Offset.Destination);
             }
             if (instruction is Subss_Register_Offset subss_Register_Offset)
             {
-
+                if (_xmmRegisterValues.TryGetValue(subss_Register_Offset.Destination, out var destinationValue) && destinationValue.TryGetValue(out float destinationFloatValue)
+                    && _memoryMap.TryGetValue(subss_Register_Offset.Source, out var sourceValue) && sourceValue.TryGetValue(out float sourceFloatValue))
+                {
+                    WipeRegister(subss_Register_Offset.Destination);
+                    SetRegister(subss_Register_Offset.Destination, MemoryLocationOrConstantValue.Create(destinationFloatValue - sourceFloatValue));
+                }
+                else WipeRegister(subss_Register_Offset.Destination);
             }
             if (instruction is Mulss_Register_Offset mulss_Register_Offset)
             {
-
+                if (_xmmRegisterValues.TryGetValue(mulss_Register_Offset.Destination, out var destinationValue) && destinationValue.TryGetValue(out float destinationFloatValue)
+                    && _memoryMap.TryGetValue(mulss_Register_Offset.Source, out var sourceValue) && sourceValue.TryGetValue(out float sourceFloatValue))
+                {
+                    WipeRegister(mulss_Register_Offset.Destination);
+                    SetRegister(mulss_Register_Offset.Destination, MemoryLocationOrConstantValue.Create(destinationFloatValue * sourceFloatValue));
+                }
+                else WipeRegister(mulss_Register_Offset.Destination);
             }
             if (instruction is Divss_Register_Offset divss_Register_Offset)
             {
-
+                if (_xmmRegisterValues.TryGetValue(divss_Register_Offset.Destination, out var destinationValue) && destinationValue.TryGetValue(out float destinationFloatValue)
+                    && _memoryMap.TryGetValue(divss_Register_Offset.Source, out var sourceValue) && sourceValue.TryGetValue(out float sourceFloatValue) && sourceFloatValue != 0)
+                {
+                    WipeRegister(divss_Register_Offset.Destination);
+                    SetRegister(divss_Register_Offset.Destination, MemoryLocationOrConstantValue.Create(destinationFloatValue / sourceFloatValue));
+                }
+                else WipeRegister(divss_Register_Offset.Destination);
             }
             if (instruction is Cvtsi2ss_Register_Offset cvtsi2Ss_Register_Offset)
             {
-
+                WipeRegister(cvtsi2Ss_Register_Offset.Destination);
             }
             if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
             {
@@ -459,7 +551,7 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Push_SymbolOffset push_SymbolOffset)
             {
-                if (_globalMemoryMap.TryGetValue(push_SymbolOffset.Offset, out var value))
+                if (_memoryMap.TryGetValue(push_SymbolOffset.Offset, out var value))
                     PushStack(value);
                 else PushStack(null);
             }
@@ -474,7 +566,8 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
             {
-
+                // Do not track byte values but need to invalidate the memory they are moved to
+                InvalidateMemory(mov_SymbolOffset_Register__Byte.Destination);
             }
             if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
             {
@@ -482,7 +575,7 @@ namespace PlatinumC.Optimizer
             }
             if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
             {
-                SetMemory(mov_SymbolOffset_Immediate.Destination, RegisterOffsetOrImmediate.Create(mov_SymbolOffset_Immediate.ImmediateValue));
+                SetMemory(mov_SymbolOffset_Immediate.Destination, MemoryLocationOrConstantValue.Create(mov_SymbolOffset_Immediate.ImmediateValue));
             }
             if (instruction is Inc_Register inc_Register)
             {
@@ -496,51 +589,48 @@ namespace PlatinumC.Optimizer
             {
                 _memoryMap.TryGetValue(inc_Offset.Destination, out var value);
                 InvalidateMemory(inc_Offset.Destination);
-                if (value != null && value.IsImmediate) SetMemory(inc_Offset.Destination, RegisterOffsetOrImmediate.Create(value.ImmediateValue + 1));
+                if (value != null && value.TryGetValue(out int immediateValue)) SetMemory(inc_Offset.Destination, MemoryLocationOrConstantValue.Create(immediateValue + 1));
                 
             }
             if (instruction is Dec_Offset dec_Offset)
             {
                 _memoryMap.TryGetValue(dec_Offset.Destination, out var value);
                 InvalidateMemory(dec_Offset.Destination);
-                if (value != null && value.IsImmediate) SetMemory(dec_Offset.Destination, RegisterOffsetOrImmediate.Create(value.ImmediateValue - 1));
+                if (value != null && value.TryGetValue(out int immediateValue)) SetMemory(dec_Offset.Destination, MemoryLocationOrConstantValue.Create(immediateValue - 1));
             }
             if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
             {
-
+                InvalidateMemory(mov_SymbolOffset_Byte_Register__Byte.Destination);
             }
             if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
             {
-                // TODO we do not track byte offsets
-                //InvalidateMemory(mov_RegisterOffset_Byte_Register__Byte.Destination);
+                InvalidateMemory(mov_RegisterOffset_Byte_Register__Byte.Destination);
             }
             return instruction;
         }
 
-        private int? GetImmediateOrNull(RegisterOffset registerOffset)
-        {
-            if (_memoryMap.TryGetValue(registerOffset, out var result) && result.IsImmediate)
-                return result.ImmediateValue;
-            return null;
-        }
-
-        private int? GetImmediateOrNull(X86Register register)
-        {
-            if (_registerValues.TryGetValue(register, out var result))
-            {
-                if (result.IsImmediate) return result.ImmediateValue;
-                return GetImmediateOrNull(result.RegisterOffset);
-            }
-            return null;
-        }
-
-        private bool TryGetRegister(RegisterOffset registerOffset, out X86Register result)
+        private bool TryGetRegister(IOffset offset, out X86Register result)
         {
             // Tests if any register already has the corresponding offset value stored in it
             result = X86Register.eax;
             foreach(var key in _registerValues.Keys)
             {
-                if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Equals(registerOffset))
+                if (_registerValues[key].IsMemoryOffset && _registerValues[key].MemoryLocation.Equals(offset))
+                {
+                    result = key;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool TryGetXmmRegister(IOffset offset, out XmmRegister result)
+        {
+            // Tests if any register already has the corresponding offset value stored in it
+            result = XmmRegister.xmm0;
+            foreach (var key in _xmmRegisterValues.Keys)
+            {
+                if (_xmmRegisterValues[key].IsMemoryOffset && _xmmRegisterValues[key].MemoryLocation.Equals(offset))
                 {
                     result = key;
                     return true;
@@ -550,23 +640,12 @@ namespace PlatinumC.Optimizer
         }
 
 
-        private bool TryGetImmediate(RegisterOffset registerOffset, out int result)
+        private bool TryGetImmediate(IOffset offset, out int result)
         {
             result = 0;
-            if (_memoryMap.TryGetValue(registerOffset, out var value) && value.IsImmediate)
+            if (_memoryMap.TryGetValue(offset, out var value) && value.TryGetValue(out int immediateValue))
             {
-                result = value.ImmediateValue;
-                return true;
-            }
-            return false;
-        }
-
-        private bool TryGetImmediate(SymbolOffset symbolOffset, out int result)
-        {
-            result = 0;
-            if (_globalMemoryMap.TryGetValue(symbolOffset, out var value) && value.IsImmediate)
-            {
-                result = value.ImmediateValue;
+                result = immediateValue;
                 return true;
             }
             return false;
@@ -577,12 +656,38 @@ namespace PlatinumC.Optimizer
             result = 0;
             if (_registerValues.TryGetValue(register, out var value))
             {
-                if (value.IsImmediate)
+                if (value.TryGetValue(out int immediateValue))
                 {
-                    result = value.ImmediateValue;
+                    result = immediateValue;
                     return true;
                 }
-                return TryGetImmediate(value.RegisterOffset, out result);
+                return TryGetImmediate(value.MemoryLocation, out result);
+            }
+            return false;
+        }
+
+        private bool TryGetImmediateFloat(IOffset offset, out float result)
+        {
+            result = 0;
+            if (_memoryMap.TryGetValue(offset, out var value) && value.TryGetValue(out float immediateValue))
+            {
+                result = immediateValue;
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryGetImmediateFloat(XmmRegister register, out float result)
+        {
+            result = 0;
+            if (_xmmRegisterValues.TryGetValue(register, out var value))
+            {
+                if (value.TryGetValue(out float immediateValue))
+                {
+                    result = immediateValue;
+                    return true;
+                }
+                return TryGetImmediateFloat(value.MemoryLocation, out result);
             }
             return false;
         }
@@ -595,70 +700,71 @@ namespace PlatinumC.Optimizer
             return reg1Value?.Equals(reg2Value) == true;
         }
 
-        private bool IsEquivalent(RegisterOffset offset1, RegisterOffset offset2)
+        private bool IsEquivalent(IOffset offset1, IOffset offset2)
         {
             if (offset1.Equals(offset2)) return true;
             _memoryMap.TryGetValue(offset1, out var offset1Value);
             _memoryMap.TryGetValue(offset2, out var offset2Value);
-            if (offset1Value == null && offset2Value != null) return offset2Value.IsRegisterOffset && offset2Value.RegisterOffset.Equals(offset1);
+            if (offset1Value == null && offset2Value != null) return offset2Value.IsMemoryOffset && offset2Value.MemoryLocation.Equals(offset1);
             return offset1Value?.Equals(offset2Value) == true;
         }
 
-        private bool IsEquivalent(X86Register register, RegisterOffset offset)
+        private bool IsEquivalent(X86Register register, IOffset offset)
         {
             _registerValues.TryGetValue(register, out var regValue);
             _memoryMap.TryGetValue(offset, out var offsetValue);
             if (regValue == null) return false;
-            if (regValue.IsRegisterOffset && regValue.RegisterOffset.Equals(offset)) return true;
+            if (regValue.IsMemoryOffset && regValue.MemoryLocation.Equals(offset)) return true;
             return regValue.Equals(offsetValue);
         }
 
-        private bool IsEquivalent(X86Register register, SymbolOffset offset)
-        {
-            _registerValues.TryGetValue(register, out var regValue);
-            _globalMemoryMap.TryGetValue(offset, out var offsetValue);
-            if (regValue == null) return false;
-            if (regValue.IsRegisterOffset && regValue.RegisterOffset.Equals(offset)) return true;
-            return regValue.Equals(offsetValue);
-        }
-
-        private bool IsEquivalent(RegisterOffset offset, X86Register register)
+        private bool IsEquivalent(IOffset offset, X86Register register)
         {
             _registerValues.TryGetValue(register, out var regValue);
             _memoryMap.TryGetValue(offset, out var offsetValue);
             if (regValue == null) return false;
-            if (regValue.IsRegisterOffset && regValue.RegisterOffset.Equals(offset)) return true;
+            if (regValue.IsMemoryOffset && regValue.MemoryLocation.Equals(offset)) return true;
             return regValue.Equals(offsetValue);
         }
 
-        private bool IsEquivalent(SymbolOffset offset, X86Register register)
+        private bool IsEquivalent(XmmRegister register1, XmmRegister register2)
         {
-            _registerValues.TryGetValue(register, out var regValue);
-            _globalMemoryMap.TryGetValue(offset, out var offsetValue);
+            if (register1 == register2) return true;
+            _xmmRegisterValues.TryGetValue(register1, out var reg1Value);
+            _xmmRegisterValues.TryGetValue(register2, out var reg2Value);
+            return reg1Value?.Equals(reg2Value) == true;
+        }
+
+        private bool IsEquivalent(XmmRegister register, IOffset offset)
+        {
+            _xmmRegisterValues.TryGetValue(register, out var regValue);
+            _memoryMap.TryGetValue(offset, out var offsetValue);
             if (regValue == null) return false;
-            if (regValue.IsRegisterOffset && regValue.RegisterOffset.Equals(offset)) return true;
+            if (regValue.IsMemoryOffset && regValue.MemoryLocation.Equals(offset)) return true;
             return regValue.Equals(offsetValue);
         }
 
-        private bool IsEquivalent(RegisterOffset offset, int immediateValue)
+        private bool IsEquivalent(IOffset offset, XmmRegister register)
+        {
+            _xmmRegisterValues.TryGetValue(register, out var regValue);
+            _memoryMap.TryGetValue(offset, out var offsetValue);
+            if (regValue == null) return false;
+            if (regValue.IsMemoryOffset && regValue.MemoryLocation.Equals(offset)) return true;
+            return regValue.Equals(offsetValue);
+        }
+
+        private bool IsEquivalent(IOffset offset, int immediateValue)
         {
             _memoryMap.TryGetValue(offset, out var offsetValue);
             if (offsetValue == null) return false;
-            return offsetValue.IsImmediate && offsetValue.ImmediateValue == immediateValue;
-        }
-
-        private bool IsEquivalent(SymbolOffset offset, int immediateValue)
-        {
-            _globalMemoryMap.TryGetValue(offset, out var offsetValue);
-            if (offsetValue == null) return false;
-            return offsetValue.IsImmediate && offsetValue.ImmediateValue == immediateValue;
+            return offsetValue.TryGetValue(out int trackedValue) && trackedValue == immediateValue;
         }
 
         private bool IsEquivalent(X86Register register, int immediateValue)
         {
             _registerValues.TryGetValue(register, out var regValue);
             if (regValue == null) return false;
-            return regValue.IsImmediate && regValue.ImmediateValue == immediateValue;
+            return regValue.TryGetValue(out int registerValue) && registerValue == immediateValue;
         }
 
         private X86Instruction? Peek(List<X86Instruction> instructions, int index)
@@ -1328,12 +1434,21 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Movss_Offset_Register movss_Offset_Register)
                     {
-                        if (!IsReferenced(fn.Instructions, i + 1, movss_Offset_Register.Destination)) continue;
 
                     }
                     if (instruction is Movss_Register_Offset movss_Register_Offset)
                     {
-
+                        if (IsEquivalent(movss_Register_Offset.Destination, movss_Register_Offset.Source)) continue;
+                        if (!IsReferenced(fn.Instructions, i + 1, movss_Register_Offset.Destination)) continue;
+                        if (TryGetXmmRegister(movss_Register_Offset.Source, out var register))
+                        {
+                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Movss(movss_Register_Offset.Destination, register)));
+                            continue;
+                        }
+                    }
+                    if (instruction is Movss_Register_Register movss_Register_Register)
+                    {
+                        if (movss_Register_Register.Destination == movss_Register_Register.Source) continue;
                     }
                     if (instruction is Comiss_Register_Offset comiss_Register_Offset)
                     {
@@ -1349,11 +1464,39 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Addss_Register_Offset addss_Register_Offset)
                     {
-
+                        if (TryGetImmediateFloat(addss_Register_Offset.Source, out var sourceFloat))
+                        {
+                            // Test for the following:
+                            // addss xmm0, [ebp-4] ;ebp-4 is 3.02
+                            // subss xmm0, [ebp-8] ;ebp-8 is 3.02
+                            // optimization:
+                            // ...         (no instructions necessary)
+                            if (Peek(fn.Instructions, i + 1) is Subss_Register_Offset subss_Register_Offset1 
+                                && subss_Register_Offset1.Destination == addss_Register_Offset.Destination 
+                                && TryGetImmediateFloat(subss_Register_Offset1.Source, out var valueToSubtract)
+                                && valueToSubtract == sourceFloat)
+                            {
+                                continue;
+                            }
+                        }                        
                     }
                     if (instruction is Subss_Register_Offset subss_Register_Offset)
                     {
-
+                        if (TryGetImmediateFloat(subss_Register_Offset.Source, out var sourceFloat))
+                        {
+                            // Test for the following:
+                            // subss xmm0, [ebp-4] ;ebp-4 is 3.02
+                            // addss xmm0, [ebp-8] ;ebp-8 is 3.02
+                            // optimization:
+                            // ...         (no instructions necessary)
+                            if (Peek(fn.Instructions, i + 1) is Addss_Register_Offset addss_Register_Offset1
+                                && addss_Register_Offset1.Destination == subss_Register_Offset.Destination
+                                && TryGetImmediateFloat(addss_Register_Offset1.Source, out var valueToAdd)
+                                && valueToAdd == sourceFloat)
+                            {
+                                continue;
+                            }
+                        }
                     }
                     if (instruction is Mulss_Register_Offset mulss_Register_Offset)
                     {
@@ -1400,7 +1543,7 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
                     {
-
+                        
                     }
                     if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset__Byte)
                     {
@@ -1436,6 +1579,7 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
                     {
+
                     }
                     if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
                     {
@@ -1669,6 +1813,10 @@ namespace PlatinumC.Optimizer
             {
                 if (movss_Register_Offset.Source.Equals(offset)) return true;
             }
+            if (instruction is Movss_Register_Register movss_Register_Register)
+            {
+
+            }
             if (instruction is Comiss_Register_Offset comiss_Register_Offset)
             {
                 if (comiss_Register_Offset.Operand2.Equals(offset)) return true;
@@ -1868,6 +2016,54 @@ namespace PlatinumC.Optimizer
             return IsEspReferenced(instructions, index + 1, exploredLabels);
         }
 
+        private bool IsReferenced(List<X86Instruction> instructions, int index, XmmRegister register, HashSet<string>? exploredLabels = null)
+        {
+            if (index >= instructions.Count) return false;
+            if (exploredLabels == null) exploredLabels = new HashSet<string>();
+            var instruction = instructions[index];
+
+            if (instruction is Jmp jmp)
+            {
+                if (!exploredLabels.Contains(jmp.Label))
+                {
+                    var labelIndex = instructions.FindIndex(x => x is Label l && l.Text == jmp.Label);
+                    if (labelIndex == -1) return true; // we cannot find the label so we must assume it is referenced
+
+                    if (jmp.Emit().StartsWith("jmp")) // if it is unconditional jump
+                        return IsReferenced(instructions, labelIndex, register, exploredLabels);
+                    else
+                    {
+                        var refencedInBranch = IsReferenced(instructions, labelIndex, register, exploredLabels);
+                        if (refencedInBranch) return true;
+                        // Otherwise keep going
+                    }
+                }
+                else
+                {
+                    // otherwise, we've already explored the jump
+                    if (jmp.Emit().StartsWith("jmp")) // it is an unconditional jump that we've already explored
+                        return false;
+
+                }
+            }
+            else if (instruction is Label label)
+            {
+                if (exploredLabels.Contains(label.Text)) return false;
+                exploredLabels.Add(label.Text);
+            }
+            else
+            {
+                var isReferenced = IsRegisterReferencedHelper(instruction, register);
+                if (isReferenced != null) return isReferenced.Value;
+                // If null, we are unable to determine yet, so continue
+            }
+
+
+            return IsReferenced(instructions, index + 1, register, exploredLabels);
+        }
+
+
+
         private bool? IsRegisterReferencedHelper(X86Instruction instruction, X86Register register)
         {
             if (instruction is Cdq cdq)
@@ -2038,6 +2234,10 @@ namespace PlatinumC.Optimizer
             {
                 if (movss_Register_Offset.Source.Register == register) return true;
             }
+            if (instruction is Movss_Register_Register movss_Register_Register)
+            {
+
+            }
             else if (instruction is Comiss_Register_Offset comiss_Register_Offset)
             {
                 if (comiss_Register_Offset.Operand2.Register == register) return true;
@@ -2122,6 +2322,221 @@ namespace PlatinumC.Optimizer
             {
                 if (mov_RegisterOffset_Byte_Register__Byte.Source.ToFullRegister() == register) return true;
                 if (mov_RegisterOffset_Byte_Register__Byte.Destination.Register == register) return true;
+            }
+            return null;
+        }
+
+        private bool? IsRegisterReferencedHelper(X86Instruction instruction, XmmRegister register)
+        {
+            if (instruction is Cdq cdq)
+            {
+
+            }
+            else if (instruction is Push_Register push_Register)
+            {
+
+            }
+            else if (instruction is Push_Offset push_Offset)
+            {
+
+            }
+            else if (instruction is Push_Address push_Address)
+            {
+            }
+            else if (instruction is Push_Immediate<int> push_Immediate)
+            {
+            }
+            else if (instruction is Lea_Register_Offset lea_Register_Offset)
+            {
+
+            }
+            else if (instruction is Mov_Register_Offset mov_Register_Offset)
+            {
+
+            }
+            else if (instruction is Mov_Offset_Register mov_Offset_Register)
+            {
+            }
+            else if (instruction is Mov_Offset_Immediate mov_Offset_Immediate)
+            {
+            }
+            else if (instruction is Mov_Register_Register mov_Register_Register)
+            {
+
+            }
+            else if (instruction is Mov_Register_Immediate mov_Register_Immediate)
+            {
+            }
+            else if (instruction is Mov_Offset_Register__Byte mov_Offset_Register__Byte)
+            {
+            }
+            else if (instruction is Movsx_Register_Offset movsx_Register_Offset)
+            {
+            }
+            else if (instruction is Sub_Register_Immediate sub_Register_Immediate)
+            {
+            }
+            else if (instruction is Sub_Register_Register sub_Register_Register)
+            {
+            }
+            else if (instruction is Add_Register_Immediate add_Register_Immediate)
+            {
+            }
+            else if (instruction is Add_Register_Register add_Register_Register)
+            {
+            }
+            else if (instruction is And_Register_Register and_Register_Register)
+            {
+            }
+            else if (instruction is Or_Register_Register or_Register_Register)
+            {
+            }
+            else if (instruction is Xor_Register_Register xor_Register_Register)
+            {
+            }
+            else if (instruction is Pop_Register pop_Register)
+            {
+
+            }
+            else if (instruction is Neg_Offset neg_Offset)
+            {
+            }
+            else if (instruction is Not_Offset not_Offset)
+            {
+            }
+            else if (instruction is IDiv_Offset idiv_Offset)
+            {
+            }
+            else if (instruction is IMul_Register_Register imul_Register_Register)
+            {
+            }
+            else if (instruction is IMul_Register_Immediate imul_Register_Immediate)
+            {
+            }
+            else if (instruction is Add_Register_Offset add_Register_Offset)
+            {
+            }
+            else if (instruction is Test_Register_Register test_Register_Register)
+            {
+            }
+            else if (instruction is Test_Register_Offset test_Register_Offset)
+            {
+            }
+            else if (instruction is Cmp_Register_Register cmp_Register_Register)
+            {
+            }
+            else if (instruction is Cmp_Register_Immediate cmp_Register_Immediate)
+            {
+            }
+            else if (instruction is Cmp_Byte_Byte cmp_Byte_Byte)
+            {
+            }
+            else if (instruction is Call call)
+            {
+                if (register == XmmRegister.xmm0) return false;
+                if (register == XmmRegister.xmm1) return false;
+            }
+            else if (instruction is Ret ret)
+            {
+                // return values placed on xmm0
+                return register == XmmRegister.xmm0;
+            }
+            else if (instruction is Ret_Immediate ret_Immediate)
+            {
+                // return values placed on xmm0
+                return register == XmmRegister.xmm0;
+            }
+            else if (instruction is Fstp_Offset fstp_Offset)
+            {
+            }
+            else if (instruction is Fld_Offset fld_Offset)
+            {
+            }
+            else if (instruction is Movss_Offset_Register movss_Offset_Register)
+            {
+                if (movss_Offset_Register.Source == register) return true;
+            }
+            else if (instruction is Movss_Register_Offset movss_Register_Offset)
+            {
+                if (movss_Register_Offset.Destination == register) return false;
+            }
+            else if (instruction is Movss_Register_Register movss_Register_Register)
+            {
+                if (movss_Register_Register.Destination == register) return false;
+                if (movss_Register_Register.Source == register) return true;
+            }
+            else if (instruction is Comiss_Register_Offset comiss_Register_Offset)
+            {
+                if (comiss_Register_Offset.Operand1 == register) return true;
+            }
+            else if (instruction is Comiss_Register_Register comiss_Register_Register)
+            {
+                if (comiss_Register_Register.Operand1 == register || comiss_Register_Register.Operand2 == register) return true;
+            }
+            else if (instruction is Ucomiss_Register_Register ucomiss_Register_Register)
+            {
+                if (ucomiss_Register_Register.Operand1 == register || ucomiss_Register_Register.Operand2 == register) return true;
+            }
+            else if (instruction is Addss_Register_Offset addss_Register_Offset)
+            {
+                if (addss_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Subss_Register_Offset subss_Register_Offset)
+            {
+                if (subss_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Mulss_Register_Offset mulss_Register_Offset)
+            {
+                if (mulss_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Divss_Register_Offset divss_Register_Offset)
+            {
+                if (divss_Register_Offset.Destination == register) return true;
+            }
+            else if (instruction is Cvtsi2ss_Register_Offset cvtsi2Ss_Register_Offset)
+            {
+                if (cvtsi2Ss_Register_Offset.Destination == register) return false;
+            }
+            else if (instruction is Cvtss2si_Register_Offset cvtss2Si_Register_Offset)
+            {
+            }
+            else if (instruction is Push_SymbolOffset push_SymbolOffset)
+            {
+            }
+            else if (instruction is Lea_Register_SymbolOffset lea_Register_SymbolOffset)
+            {
+            }
+            else if (instruction is Mov_SymbolOffset_Register mov_SymbolOffset_Register)
+            {
+            }
+            else if (instruction is Mov_SymbolOffset_Register__Byte mov_SymbolOffset_Register__Byte)
+            {
+            }
+            else if (instruction is Movsx_Register_SymbolOffset__Byte movsx_Register_SymbolOffset)
+            {
+            }
+            else if (instruction is Mov_SymbolOffset_Immediate mov_SymbolOffset_Immediate)
+            {
+
+            }
+            else if (instruction is Inc_Register inc_Register)
+            {
+            }
+            else if (instruction is Dec_Register dec_Register)
+            {
+            }
+            else if (instruction is Inc_Offset inc_Offset)
+            {
+            }
+            else if (instruction is Dec_Offset dec_Offset)
+            {
+            }
+            else if (instruction is Mov_SymbolOffset_Byte_Register__Byte mov_SymbolOffset_Byte_Register__Byte)
+            {
+            }
+            else if (instruction is Mov_RegisterOffset_Byte_Register__Byte mov_RegisterOffset_Byte_Register__Byte)
+            {
+
             }
             return null;
         }
@@ -2515,6 +2930,10 @@ namespace PlatinumC.Optimizer
 
             }
             if (instruction is Movss_Register_Offset movss_Register_Offset)
+            {
+
+            }
+            if (instruction is Movss_Register_Register movss_Register_Register)
             {
 
             }
