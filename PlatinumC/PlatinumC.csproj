@@ -12,7 +12,7 @@
 	<RuntimeIdentifier>win-x86</RuntimeIdentifier>
 	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-	  <Version>1.0.1</Version>
+	  <Version>1.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,14 +26,8 @@
         <PackagePath>lib\$(TargetFramework)</PackagePath>
     </Content>
 </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Assemblers\Fasm\" />
-  </ItemGroup>
 
   <ItemGroup>
-    <None Update="Assemblers\Fasm\FASM.EXE">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="FASM.DLL">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
