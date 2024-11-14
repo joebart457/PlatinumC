@@ -548,6 +548,8 @@ namespace PlatinumC.Resolver
             var valueToAssign = assignment.ValueToAssign.Visit(this);
             if (!assignmentTarget.ResolvedType.Is(valueToAssign.ResolvedType)) 
                 throw new ParsingException(assignment.Token, $"unable to assign value of type {valueToAssign.ResolvedType} to identifier of type {assignmentTarget.ResolvedType}");
+            if (assignmentTarget.ResolvedType.IsArray)
+                throw new ParsingException(assignment.Token, "unable to assign directly to array type");
 
             return new TypedAssignment(assignment, assignmentTarget.ResolvedType, assignmentTarget, valueToAssign);
         }
