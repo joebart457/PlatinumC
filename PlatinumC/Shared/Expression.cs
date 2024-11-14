@@ -268,6 +268,22 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class BinaryArrayIndex : Expression
+    {
+        public Expression Lhs { get; set; }
+        public Expression Rhs { get; set; }
+        public BinaryArrayIndex(IToken token, Expression lhs, Expression rhs)
+            : base(token)
+        {
+            Lhs = lhs;
+            Rhs = rhs;
+        }
+
+        public override TypedExpression Visit(TypeResolver resolver)
+        {
+            return resolver.Accept(this);
+        }
+    }
     public class UnaryNegation : Expression
     {
         public Expression Rhs { get; set; }

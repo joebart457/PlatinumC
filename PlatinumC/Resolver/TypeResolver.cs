@@ -126,12 +126,17 @@ namespace PlatinumC.Resolver
             if (typeSymbol.SupportedType == SupportedType.Ptr)
             {
                 if (typeSymbol.UnderlyingType == null) throw new InvalidOperationException();
-                return new ResolvedType(SupportedType.Ptr, Resolve(typeSymbol.UnderlyingType));
+                return ResolvedType.CreatePointer(Resolve(typeSymbol.UnderlyingType));
             }
             else if (typeSymbol.SupportedType == SupportedType.Custom)
             {
                 if (_customTypes.TryGetValue(typeSymbol.Token.Lexeme, out var resolvedType)) return resolvedType;
                 throw new ParsingException(typeSymbol.Token, $"type {typeSymbol.Token.Lexeme} is not defined");
+            }
+            else if (typeSymbol.SupportedType == SupportedType.Array)
+            {
+                if (typeSymbol.UnderlyingType == null) throw new InvalidOperationException();
+                return ResolvedType.CreateArray(Resolve(typeSymbol.UnderlyingType), typeSymbol.ArraySize);
             }
             return ResolvedType.Create(typeSymbol.SupportedType);
         }
@@ -389,7 +394,7 @@ namespace PlatinumC.Resolver
             if (typeToCastTo.Is(SupportedType.Void)) throw new ParsingException(cast.Token, "cannot cast to void type");
             if (typeToCastTo.IsPointer && rhs.ResolvedType.IsPointer)
             {
-                if (typeToCastTo.UnderlyingType!.Is(SupportedType.Void)) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
+                if (typeToCastTo.UnderlyingType!.Is(SupportedType.Void) || rhs.ResolvedType.UnderlyingType!.Is(SupportedType.Void)) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
                 if (typeToCastTo.ReferencedTypeSize == rhs.ResolvedType.ReferencedTypeSize) return new TypedCast_Pointer_From_Pointer(cast, typeToCastTo, rhs);
                 throw new ParsingException(cast.Token, $"unable to cast from pointer type {rhs.ResolvedType} to type {typeToCastTo}. Underlying types must be of equal size.");
             }
@@ -555,7 +560,7 @@ namespace PlatinumC.Resolver
 
         internal TypedExpression Accept(Reference reference)
         {
-            if (_localVariables.TryGetValue(reference.Token.Lexeme, out var resolvedType)) return new Shared.TypedReference(reference, ResolvedType.Create(SupportedType.Ptr, resolvedType), reference.Token);
+            if (_localVariables.TryGetValue(reference.Token.Lexeme, out var resolvedType)) return new Shared.TypedReference(reference, ResolvedType.CreatePointer(resolvedType), reference.Token);
 
             var foundParameter = CurrentFunction.Parameters.Find(x => x.ParameterName.Lexeme == reference.Token.Lexeme);
             if (foundParameter == null)
@@ -563,7 +568,7 @@ namespace PlatinumC.Resolver
                 if (_globalVariables.TryGetValue(reference.Token.Lexeme, out var globalVariableType)) return new TypedGlobalReference(reference, globalVariableType, reference.Token);
                 throw new ParsingException(reference.Token, $"identifier {reference.Token.Lexeme} is not defined");
             }
-            return new Shared.TypedReference(reference, ResolvedType.Create(SupportedType.Ptr, foundParameter.ResolvedType), reference.Token);
+            return new Shared.TypedReference(reference, ResolvedType.CreatePointer(foundParameter.ResolvedType), reference.Token);
         }
 
         internal TypedExpression Accept(Dereference dereference)
@@ -654,6 +659,18 @@ namespace PlatinumC.Resolver
         internal TypedDeclaration Accept(ProgramIconDeclaration programIconDeclaration)
         {
             return new TypedProgramIconDeclaration(programIconDeclaration, programIconDeclaration.IconFilePath);
+        }
+
+        internal TypedExpression Accept(BinaryArrayIndex binaryArrayIndex)
+        {
+            var lhs = binaryArrayIndex.Visit(this);
+            if (!lhs.ResolvedType.IsArray)
+                throw new ParsingException(binaryArrayIndex.Token, "expect left hand side of index to be array type");
+            var rhs = binaryArrayIndex.Visit(this);
+            if (!rhs.ResolvedType.Is(SupportedType.Int))
+                throw new ParsingException(binaryArrayIndex.Token, $"expect index of array to be integer type");
+            if (rhs is TypedLiteralInteger typedLiteralInteger) return new TypedBinaryArrayIndex_LiteralInteger(binaryArrayIndex, lhs.ResolvedType.UnderlyingType!, lhs, typedLiteralInteger);
+            return new  TypedBinaryArrayIndex(binaryArrayIndex, lhs.ResolvedType.UnderlyingType!, lhs, rhs);
         }
     }
 }

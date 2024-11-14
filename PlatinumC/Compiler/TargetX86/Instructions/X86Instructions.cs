@@ -14,12 +14,26 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
     public static class X86Instructions
     {
         public static Cdq Cdq() => new Cdq();
+
+        public static X86Instruction Push(IOffset source)
+        {
+            if (source is RegisterOffset registerOffset) return Push(registerOffset);
+            else if (source is SymbolOffset symbolOffset) return Push(symbolOffset);
+            else throw new InvalidOperationException();
+        }
+
         public static Push_Register Push(X86Register register) => new Push_Register(register);
         public static Push_Offset Push(RegisterOffset offset) => new Push_Offset(offset);
         public static Push_Address Push(string address, bool isIndirect) => new Push_Address(address, isIndirect);
         public static Push_Immediate<int> Push(int immediateValue) => new Push_Immediate<int>(immediateValue);
         public static Push_SymbolOffset Push(SymbolOffset offset) => new Push_SymbolOffset(offset);
 
+        public static X86Instruction Lea(X86Register destination, IOffset source)
+        {
+            if (source is RegisterOffset registerOffset) return Lea(destination, registerOffset);
+            else if (source is SymbolOffset symbolOffset) return Lea(destination, symbolOffset);
+            else throw new InvalidOperationException();
+        }
         public static Lea_Register_Offset Lea(X86Register destination, RegisterOffset source) => new Lea_Register_Offset(destination, source);
         public static Lea_Register_SymbolOffset Lea(X86Register destination, SymbolOffset source) => new Lea_Register_SymbolOffset(destination, source);
 
@@ -36,6 +50,13 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         public static Mov_SymbolOffset_Byte_Register__Byte Mov(SymbolOffset_Byte destination, X86ByteRegister source) => new Mov_SymbolOffset_Byte_Register__Byte(destination, source);
         public static Mov_RegisterOffset_Byte_Register__Byte Mov(RegisterOffset_Byte destination, X86ByteRegister source) => new Mov_RegisterOffset_Byte_Register__Byte(destination, source);
 
+
+        public static X86Instruction Movsx(X86Register destination, IOffset source)
+        {
+            if (source is RegisterOffset_Byte registerOffset_Byte) return Movsx(destination, registerOffset_Byte);
+            else if (source is SymbolOffset_Byte symbolOffset_Byte) return Movsx(destination, symbolOffset_Byte);
+            else throw new NotImplementedException();
+        }
 
         public static Mov_Offset_Register__Byte Mov(RegisterOffset destination, X86ByteRegister source) => new Mov_Offset_Register__Byte(destination, source);
         public static Movsx_Register_Offset Movsx(X86Register destination, RegisterOffset_Byte source) => new Movsx_Register_Offset(destination, source);

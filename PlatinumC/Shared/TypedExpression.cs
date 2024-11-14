@@ -2,6 +2,7 @@
 using PlatinumC.Compiler.TargetX86;
 using PlatinumC.Compiler.TargetX86.Instructions;
 using PlatinumC.Interfaces;
+using System.Collections.Generic;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using TokenizerCore.Interfaces;
@@ -728,6 +729,93 @@ namespace PlatinumC.Shared
     #endregion
 
 
+    public class TypedBinaryArrayIndex_LiteralInteger : TypedExpression
+    {
+        public TypedExpression Lhs { get; set; }
+        public TypedLiteralInteger Index { get; set; }
+        public TypedBinaryArrayIndex_LiteralInteger(Expression originalExpression, ResolvedType resolvedType, TypedExpression lhs, TypedLiteralInteger index)
+            : base(originalExpression, resolvedType)
+        {
+            Lhs = lhs;
+            Index = index;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            var arrayOffset = Lhs.GetEvaluatedOffset(context);
+            arrayOffset.Offset += Index.Value * ResolvedType.Size();
+
+            if (ResolvedType.HasStorageClass(StorageClass.Byte))
+            {
+                context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, arrayOffset));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+            }
+            else if (ResolvedType.HasStorageClass(StorageClass.Dword))
+            {
+                context.AddInstruction(X86Instructions.Push(arrayOffset));
+                throw new InvalidOperationException();
+            }
+            else throw new InvalidOperationException("cannot push object of this size onto stack");
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            var arrayOffset = Lhs.GetEvaluatedOffset(context);
+            arrayOffset.Offset += Index.Value * ResolvedType.Size();
+            return arrayOffset;
+        }
+    }
+
+    public class TypedBinaryArrayIndex : TypedExpression
+    {
+        public TypedExpression Lhs { get; set; }
+        public TypedExpression Rhs { get; set; }
+        public TypedBinaryArrayIndex(Expression originalExpression, ResolvedType resolvedType, TypedExpression lhs, TypedExpression rhs)
+            : base(originalExpression, resolvedType)
+        {
+            Lhs = lhs;
+            Rhs = rhs;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+
+            base.Visit(context);
+            Rhs.Visit(context);
+            var arrayOffset = Lhs.GetEvaluatedOffset(context);
+            context.AddInstruction(X86Instructions.Lea(X86Register.eax, arrayOffset));
+            context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
+            context.AddInstruction(X86Instructions.IMul(X86Register.ebx, ResolvedType.Size()));
+            context.AddInstruction(X86Instructions.Add(X86Register.eax, X86Register.ebx));
+            if (ResolvedType.HasStorageClass(StorageClass.Byte))
+            {
+                context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, 0)));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+            }
+            else if (ResolvedType.HasStorageClass(StorageClass.Dword))
+            {
+                context.AddInstruction(X86Instructions.Push(Offset.Create(X86Register.eax, 0)));
+            }
+            else throw new InvalidOperationException("cannot push object of this size onto stack");
+        }
+
+        public override IOffset GetEvaluatedOffset(X86CompilationContext context)
+        {
+            Rhs.Visit(context);
+            var arrayOffset = Lhs.GetEvaluatedOffset(context);
+            context.AddInstruction(X86Instructions.Lea(X86Register.eax, arrayOffset));
+            context.AddInstruction(X86Instructions.Pop(X86Register.ebx));
+            context.AddInstruction(X86Instructions.IMul(X86Register.ebx, ResolvedType.Size()));
+            context.AddInstruction(X86Instructions.Add(X86Register.eax, X86Register.ebx));
+            if (ResolvedType.HasStorageClass(StorageClass.Byte))
+            {
+                return Offset.CreateByteOffset(X86Register.eax, 0);
+            }
+            return Offset.Create(X86Register.eax, 0);
+        }
+    }
+
     public class TypedCall : TypedExpression
     {
         public TypedFunctionDeclaration Function { get; set; }
@@ -804,18 +892,19 @@ namespace PlatinumC.Shared
             ValueToAssign.Visit(context);
             var offset = AssignmentTarget.GetEvaluatedOffset(context);
             context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.esp, 0)));
-            if (ResolvedType.Is(SupportedType.Byte))
+            if (ResolvedType.HasStorageClass(StorageClass.Byte))
             {
                 if (offset is RegisterOffset_Byte registerOffset_Byte) context.AddInstruction(X86Instructions.Mov(registerOffset_Byte, X86ByteRegister.bl));
                 else if (offset is SymbolOffset_Byte symbolOffset_Byte) context.AddInstruction(X86Instructions.Mov(symbolOffset_Byte, X86ByteRegister.bl));
                 else throw new InvalidOperationException();
             }
-            else
+            else if (ResolvedType.HasStorageClass(StorageClass.Dword))
             {
                 if (offset is RegisterOffset registerOffset) context.AddInstruction(X86Instructions.Mov(registerOffset, X86Register.ebx));
                 else if (offset is SymbolOffset symbolOffset) context.AddInstruction(X86Instructions.Mov(symbolOffset, X86Register.ebx));
                 else throw new InvalidOperationException();
             }
+            else throw new InvalidOperationException("cannot assign directly to object of this size");
             // ebx left on stack so no need to push
                 
         }
@@ -865,7 +954,7 @@ namespace PlatinumC.Shared
         public override IOffset GetEvaluatedOffset(X86CompilationContext context)
         {
             var offset = context.GetGlobalOffset(Identifier);
-            if (ResolvedType.Is(SupportedType.Byte)) return Offset.CreateSymbolByteOffset(offset.Symbol, offset.Offset);
+            if (ResolvedType.HasStorageClass(StorageClass.Byte)) return Offset.CreateSymbolByteOffset(offset.Symbol, offset.Offset);
             return offset;
         }
     }

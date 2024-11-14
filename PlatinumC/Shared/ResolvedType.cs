@@ -12,7 +12,15 @@ namespace PlatinumC.Shared
         Ptr,
         String,
         Void,
-        Custom
+        Custom,
+        Array,
+    }
+
+    public enum StorageClass
+    {
+        Byte,
+        Dword,
+        QWord,
     }
     public class ResolvedType
     {
@@ -20,6 +28,7 @@ namespace PlatinumC.Shared
         public ResolvedType? UnderlyingType { get; set; }
         public IToken TypeName { get; set; }
         public List<(string fieldName, ResolvedType fieldType)> Fields { get; private set; }
+        public int ArraySize { get; set; }
         public ResolvedType(SupportedType supportedType, ResolvedType? underlyingType)
         {
             SupportedType = supportedType;
@@ -40,11 +49,18 @@ namespace PlatinumC.Shared
 
         public bool IsPointer => SupportedType == SupportedType.Ptr;
         public bool IsCustomType => SupportedType == SupportedType.Custom;
+        public bool IsArray => SupportedType == SupportedType.Array;
         public bool Is(SupportedType supportedType)
         {
             return SupportedType == supportedType && UnderlyingType == null && SupportedType != SupportedType.Custom;
         }
-
+        public bool HasStorageClass(StorageClass storageClass)
+        {
+            if (storageClass == StorageClass.Byte) return Size() == 1;
+            if (storageClass == StorageClass.Dword) return Size() == 4;
+            if (storageClass == StorageClass.QWord) return Size() == 8;
+            throw new InvalidOperationException();
+        }
         public bool Is(ResolvedType? resolvedType)
         {
             if (resolvedType == null) return false;
@@ -59,7 +75,11 @@ namespace PlatinumC.Shared
             if (SupportedType == SupportedType.Byte) return 1;
             if (SupportedType == SupportedType.Custom)
             {
-                int size = Fields.Sum(x => x.fieldType.Size());
+                return Fields.Sum(x => x.fieldType.Size());
+            }
+            if (SupportedType == SupportedType.Array)
+            {
+                return UnderlyingType!.Size() * ArraySize;
             }
             return 4;
         }
@@ -70,6 +90,12 @@ namespace PlatinumC.Shared
             if (SupportedType == SupportedType.Custom)
             {
                 int size = Fields.Sum(x => x.fieldType.Size());
+                return size + (size % 4); // align stack 4 bytes
+            }
+            if (SupportedType == SupportedType.Array)
+            {
+                int size = Size();
+                return size + (size % 4); // align stack 4 bytes
             }
             return 4;
         }
@@ -80,9 +106,14 @@ namespace PlatinumC.Shared
             return new ResolvedType(supportedType, null);
         }
 
-        public static ResolvedType Create(SupportedType supportedType, ResolvedType underlyingType)
+        public static ResolvedType CreatePointer(ResolvedType underlyingType)
         {
-            return new ResolvedType(supportedType, underlyingType);
+            return new ResolvedType(SupportedType.Ptr, underlyingType);
+        }
+
+        public static ResolvedType CreateArray(ResolvedType underlyingType, int arraySize)
+        {
+            return new ResolvedType(SupportedType.Array, underlyingType) { ArraySize = arraySize };
         }
 
         public static ResolvedType Create(IToken typeName, List<(string fieldName, ResolvedType fieldType)> fields)

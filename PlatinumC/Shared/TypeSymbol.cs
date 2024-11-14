@@ -7,7 +7,8 @@ namespace PlatinumC.Shared
         public IToken Token { get; set; }
         public SupportedType SupportedType { get; set; }
         public TypeSymbol? UnderlyingType { get; set; }
-        public TypeSymbol(IToken token, SupportedType supportedType, TypeSymbol? underlyingType)
+        public int ArraySize { get; set; }
+        public TypeSymbol(IToken token, SupportedType supportedType, TypeSymbol? underlyingType, int arraySize = 1)
         {
             Token = token;
             SupportedType = supportedType;

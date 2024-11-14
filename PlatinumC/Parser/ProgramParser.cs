@@ -393,7 +393,7 @@ namespace PlatinumC.Parser
         public Expression ParseCall()
         {
             var expression = ParseUnary();
-            while (Match(TokenTypes.LParen) || Match(TokenTypes.Arrow) || Match(TokenTypes.Dot))
+            while (Match(TokenTypes.LParen) || Match(TokenTypes.Arrow) || Match(TokenTypes.Dot) || Match(TokenTypes.LBracket))
             {
                 if (AdvanceIfMatch(TokenTypes.LParen))
                 {
@@ -416,6 +416,11 @@ namespace PlatinumC.Parser
                 {
                     var memberName = Consume(BuiltinTokenTypes.Word, "expect member name");
                     expression = new GetFromLocalStruct(memberName, expression, memberName);
+                }else if (AdvanceIfMatch(TokenTypes.LBracket))
+                {
+                    var indexExpression = ParseExpression();
+                    Consume(TokenTypes.RBracket, "expect enclosing ] in array index");
+                    expression = new BinaryArrayIndex(Previous(), expression, indexExpression);
                 }
                 else
                 {
@@ -520,13 +525,25 @@ namespace PlatinumC.Parser
                 else if (supportedType == SupportedType.String) typeSymbol = new TypeSymbol(Previous(), SupportedType.Ptr, new TypeSymbol(Previous(), SupportedType.Byte, null));
                 else if (supportedType == SupportedType.Custom) typeSymbol = new TypeSymbol(Consume(BuiltinTokenTypes.Word, "expect custom type name"), SupportedType.Custom, null);
                 else typeSymbol = new TypeSymbol(Previous(), supportedType, null);
-            } 
-            
-            if (AdvanceIfMatch(TokenTypes.Asterisk))
-            {
-                typeSymbol = new TypeSymbol(Previous(), SupportedType.Ptr, ParseTypeSymbol(typeSymbol));
+                return ParseTypeSymbol(typeSymbol);
             }
-            return typeSymbol;
+            else if (AdvanceIfMatch(TokenTypes.Asterisk))
+            {
+                typeSymbol = new TypeSymbol(Previous(), SupportedType.Ptr, typeSymbol);
+                return ParseTypeSymbol(typeSymbol);
+            }
+            else if (AdvanceIfMatch(TokenTypes.LBracket))
+            {
+                var arraySizeToken = Consume(BuiltinTokenTypes.Integer, "expect array size");
+                int arraySize = int.Parse(arraySizeToken.Lexeme);
+                if (arraySize <= 0)
+                    throw new ParsingException(arraySizeToken, $"array size must be greater than 0");
+                Consume(TokenTypes.RBracket, "expect enclosing ] in array type declaration");
+                typeSymbol = new TypeSymbol(Previous(), SupportedType.Array, typeSymbol, arraySize);
+                return ParseTypeSymbol(typeSymbol);
+            }
+            else return typeSymbol;
+
         }
 
         private SupportedType ParseSupportedType()
