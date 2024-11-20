@@ -128,8 +128,8 @@ namespace PlatinumC.Shared
     {
         public TypeSymbol TypeSymbol { get; set; }
         public IToken Identifier { get; set; }
-        public Expression Initializer { get; set; }
-        public GlobalVariableDeclaration(IToken token, TypeSymbol typeSymbol, IToken identifier, Expression initializer) : base(token)
+        public Expression? Initializer { get; set; }
+        public GlobalVariableDeclaration(IToken token, TypeSymbol typeSymbol, IToken identifier, Expression? initializer) : base(token)
         {
             TypeSymbol = typeSymbol;
             Identifier = identifier;

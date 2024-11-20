@@ -59,6 +59,7 @@ namespace PlatinumC.Services
         [Command("fasm")]
         public int RunFasm(      
            [Option("assemblyPath", "a", "the path of the input assembly code.")] string assemblyPath,
+           [Option("outputPath", "o", "the desired path of the resulting binary")] string outputPath,
            [Option("compilationMemoryBuffer", "mb", "size of memory in bytes the compiler will use for assembly")] int compilationMemoryBuffer = 100000,
            [Option("assemblyPasses", "na", "number of passes the assembler is allowed to use when attempting to generate final binary")] int assemblyPasses = 100,
            [Option("copyright", "c", "show copyright")] bool showCopyright = false)
@@ -67,6 +68,7 @@ namespace PlatinumC.Services
             var compilationOptions = new CompilationOptions()
             {
                 AssemblyPath = assemblyPath,
+                OutputPath = outputPath,
                 AssemblerOptions = new()
                 {
                     EnableInMemoryAssembly = true,

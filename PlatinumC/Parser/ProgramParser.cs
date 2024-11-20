@@ -240,13 +240,15 @@ namespace PlatinumC.Parser
 
         public GlobalVariableDeclaration ParseGlobalVariableDeclaration()
         {
-
             // global int _hheap = 0;
             var typeSymbol = ParseTypeSymbol();
             var token = Previous();
             var identifier = Consume(BuiltinTokenTypes.Word, "expect identifier symbol");
-            Consume(TokenTypes.Equal, "expect initializer value in variable declaration");
-            var initializerValue = ParseExpression();
+            Expression? initializerValue = null;
+            if (AdvanceIfMatch(TokenTypes.Equal))
+            {
+                initializerValue = ParseExpression();
+            }          
             Consume(TokenTypes.SemiColon, "expect ; after statement");
             return new GlobalVariableDeclaration(token, typeSymbol, identifier, initializerValue);
         }
@@ -365,6 +367,10 @@ namespace PlatinumC.Parser
                 {
                     var valueToAssign = ParseExpression();
                     return new Assignment(getFromLocalStruct.MemberTarget, getFromLocalStruct, valueToAssign);
+                }else if (expression is BinaryArrayIndex binaryArrayIndex)
+                {
+                    var valueToAssign = ParseExpression();
+                    return new Assignment(token, binaryArrayIndex, valueToAssign);
                 }
                 else throw new ParsingException(Previous(), "unexpected assignment target on left hand side of =");
             }
@@ -484,6 +490,7 @@ namespace PlatinumC.Parser
             if (AdvanceIfMatch(BuiltinTokenTypes.Byte)) return new LiteralByte(Previous(), byte.Parse(Previous().Lexeme));
             if (AdvanceIfMatch(BuiltinTokenTypes.Float)) return new LiteralFloatingPoint(Previous(), float.Parse(Previous().Lexeme));
             if (AdvanceIfMatch(TokenTypes.Nullptr)) return new LiteralNullPointer(Previous());
+            
             if (AdvanceIfMatch(TokenTypes.Minus))
             {
                 if (AdvanceIfMatch(BuiltinTokenTypes.Integer)) return new LiteralInteger(Previous(), -int.Parse(Previous().Lexeme));
@@ -534,6 +541,11 @@ namespace PlatinumC.Parser
             }
             else if (AdvanceIfMatch(TokenTypes.LBracket))
             {
+                if (AdvanceIfMatch(TokenTypes.RBracket))
+                {
+                    typeSymbol = new TypeSymbol(Previous(), SupportedType.Ptr, typeSymbol);
+                    return ParseTypeSymbol(typeSymbol);
+                }
                 var arraySizeToken = Consume(BuiltinTokenTypes.Integer, "expect array size");
                 int arraySize = int.Parse(arraySizeToken.Lexeme);
                 if (arraySize <= 0)

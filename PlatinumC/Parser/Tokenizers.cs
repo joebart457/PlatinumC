@@ -16,7 +16,7 @@ namespace PlatinumC.Parser
                     new TokenizerRule(TokenTypes.LParen, "("),
                     new TokenizerRule(TokenTypes.RParen, ")"),
                     new TokenizerRule(TokenTypes.LBracket, "["),
-                    new TokenizerRule(TokenTypes.RParen, "]"),
+                    new TokenizerRule(TokenTypes.RBracket, "]"),
                     new TokenizerRule(TokenTypes.Colon, ":"),
                     new TokenizerRule(TokenTypes.Comma, ","),
                     new TokenizerRule(TokenTypes.Dot, "."),

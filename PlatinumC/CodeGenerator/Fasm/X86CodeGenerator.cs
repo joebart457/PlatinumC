@@ -57,6 +57,11 @@ namespace PlatinumC.CodeGenerator.Fasm
                 sb.AppendLine(pointerData.Emit(1, data.CompilationOptions));
             }
 
+            foreach (var unitializedData in data.StaticUnitializedData)
+            {
+                sb.AppendLine(unitializedData.Emit(1, data.CompilationOptions));
+            }
+
             // Output User Functions
             sb.AppendLine("section '.text' code readable executable");
             foreach (var proc in data.FunctionData)

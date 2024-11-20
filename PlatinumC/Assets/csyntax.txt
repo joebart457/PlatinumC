@@ -1,0 +1,89 @@
+library kernel32 'kernel32.dll'
+
+import kernel32 stdcall void ExitProcess(int exitCode);
+
+
+library msvcrt 'msvcrt.dll'
+import msvcrt cdecl void printf(string msg);
+import msvcrt cdecl void printf_num(string msg, int num) from 'printf';
+import msvcrt cdecl void printf_num_num(string msg, int num, int num2) from 'printf';
+import msvcrt cdecl void printf_string(string msg, string num) from 'printf';
+import msvcrt cdecl void printf_float(string msg, float num1, int num) from 'printf';
+
+// Define a struct
+type Person {
+    byte[50] name;
+    int age;
+}
+
+
+void Main() {
+    // Variable declarations
+    int i; int maxVal;
+    int[5] numbers;
+    
+    // Initialize array elements
+    numbers[0] = 3;
+    numbers[1] = 5;
+    numbers[2] = 1;
+    numbers[3] = 7;
+    numbers[4] = 4;
+
+    // Initialize struct members
+    struct Person person;
+    i = 0;
+    while (i < 50) {
+        person.name[i] = 0b; // Setting all characters to null
+	i = i+1;
+    }
+
+    // Assign values to the struct members
+    person.name[0] = 97b;
+    person.name[1] = 98b;
+    person.name[2] = 99b;
+    person.name[3] = 100b;
+    person.name[4] = 101b;
+    person.age = 30;
+
+    // Conditional statements
+    if (person.age > 18) {
+        printf_string("%s is an adult.\n", person.name);
+    } else {
+        printf_string("%s is not an adult.\n", person.name);
+    }
+
+    // While loop
+    i = 0;
+    while (i < 5) {
+        printf_num_num("numbers[%d] = %d\n", i, numbers[i]);
+        i= i + 1;
+    }
+
+    // Function call to find max value
+    maxVal = findMax(numbers, 5);
+    printf_num("Max value in the array: %d\n", maxVal);
+
+    // Function call to print person details
+    printPersonDetails(&person);
+
+    ExitProcess(0);
+}
+
+// Function to print person details
+void printPersonDetails(struct Person* person) {
+    printf_string("Person Name: %s\n", person->name);
+    printf_num("Person Age: %d\n", person->age);
+}
+
+// Function to find the maximum value in an array
+int findMax(int[5] arr, int size) {
+    int max = arr[0];
+    int i = 1;
+    while (i < size) {
+        if (arr[i] > max) {
+            max = arr[i];
+        }
+        i = i + 1;
+    }
+    return max;
+}

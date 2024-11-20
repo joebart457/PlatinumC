@@ -54,20 +54,22 @@ namespace PlatinumC.Shared
         {
             return SupportedType == supportedType && UnderlyingType == null && SupportedType != SupportedType.Custom;
         }
+        public bool Is(ResolvedType? resolvedType)
+        {
+            if (resolvedType == null) return false;
+            if (SupportedType == SupportedType.Ptr) return (resolvedType.SupportedType == SupportedType.Ptr || resolvedType.SupportedType == SupportedType.Array) && UnderlyingType!.Is(resolvedType.UnderlyingType);
+            if (SupportedType == SupportedType.Array) return (resolvedType.SupportedType == SupportedType.Ptr || resolvedType.SupportedType == SupportedType.Array) && UnderlyingType!.Is(resolvedType.UnderlyingType);
+            // we only validate TypeNames for custom types, not that their fields are equivalent
+            if (SupportedType == SupportedType.Custom) return resolvedType.SupportedType == SupportedType.Custom && TypeName!.Lexeme == resolvedType.TypeName.Lexeme;
+            return SupportedType == resolvedType.SupportedType;
+        }
+
         public bool HasStorageClass(StorageClass storageClass)
         {
             if (storageClass == StorageClass.Byte) return Size() == 1;
             if (storageClass == StorageClass.Dword) return Size() == 4;
             if (storageClass == StorageClass.QWord) return Size() == 8;
             throw new InvalidOperationException();
-        }
-        public bool Is(ResolvedType? resolvedType)
-        {
-            if (resolvedType == null) return false;
-            if (SupportedType == SupportedType.Ptr) return resolvedType.SupportedType == SupportedType.Ptr && UnderlyingType!.Is(resolvedType.UnderlyingType);
-            // we only validate TypeNames for custom types, not that their fields are equivalent
-            if (SupportedType == SupportedType.Custom) return resolvedType.SupportedType == SupportedType.Custom && TypeName!.Lexeme == resolvedType.TypeName.Lexeme;
-            return SupportedType == resolvedType.SupportedType;
         }
 
         public int Size()

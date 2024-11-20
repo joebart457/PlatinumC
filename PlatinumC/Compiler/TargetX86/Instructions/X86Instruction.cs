@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿
 namespace PlatinumC.Compiler.TargetX86.Instructions
 {
     public abstract class X86Instruction
@@ -17,6 +12,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
     public interface IOffset
     {
         public int Offset { get; set; }
+        public IOffset ToByteOffset();
     }
 
     public class Offset
@@ -55,6 +51,8 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         {
             return Register.GetHashCode();
         }
+
+        public IOffset ToByteOffset() => new RegisterOffset_Byte(Register, Offset);
     }
 
     public class SymbolOffset : IOffset
@@ -86,6 +84,8 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         {
             return Symbol.GetHashCode();
         }
+
+        public IOffset ToByteOffset() => new SymbolOffset_Byte(Symbol, Offset);
     }
 
     public class SymbolOffset_Byte : IOffset
@@ -117,6 +117,8 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         {
             return Symbol.GetHashCode();
         }
+
+        public IOffset ToByteOffset() => this;
     }
 
     public class RegisterOffset_Byte : IOffset
@@ -149,5 +151,7 @@ namespace PlatinumC.Compiler.TargetX86.Instructions
         {
             return Register.GetHashCode();
         }
+
+        public IOffset ToByteOffset() => this;
     }
 }

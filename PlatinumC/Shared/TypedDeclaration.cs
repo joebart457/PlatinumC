@@ -250,6 +250,24 @@ namespace PlatinumC.Shared
         }
     }
 
+    public class TypedGlobalVariableDeclaration_UninitializedObject : TypedDeclaration
+    {
+        public ResolvedType ResolvedType { get; set; }
+        public IToken Identifier { get; set; }
+        public TypedGlobalVariableDeclaration_UninitializedObject(Declaration originalDeclaration, ResolvedType resolvedType, IToken identifier) : base(originalDeclaration)
+        {
+            ResolvedType = resolvedType;
+            Identifier = identifier;
+        }
+
+        public override void Visit(X86CompilationContext context)
+        {
+            base.Visit(context);
+            context.AddUninitializedData(ResolvedType.Size(), Identifier.Lexeme);
+        }
+
+    }
+
     public class TypedProgramIconDeclaration : TypedDeclaration
     {
         public IToken IconFilePath { get; set; }

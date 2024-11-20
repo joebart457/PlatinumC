@@ -147,7 +147,7 @@ namespace PlatinumC.Optimizer
 
         private void PushStack(MemoryLocationOrConstantValue? memoryLocationOrConstantValue)
         {
-            foreach(var key in _registerValues.Keys)
+             foreach(var key in _registerValues.Keys)
             {
                 if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Register == X86Register.esp)
                 {
@@ -176,18 +176,25 @@ namespace PlatinumC.Optimizer
 
         private void AdjustMemory(X86Register register, int offset)
         {
-            foreach (var key in _registerValues.Keys)
+            if (register == X86Register.esp && offset < 0)
             {
-                if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Register == register)
-                {
-                    _registerValues[key] = MemoryLocationOrConstantValue.Create(Offset.Create(register, _registerValues[key].RegisterOffset.Offset + offset));
-                }
+                WipeRegister(X86Register.esp);
             }
-            foreach (var key in _memoryMap.Keys)
+            else
             {
-                if (_memoryMap[key].IsRegisterOffset && _memoryMap[key].RegisterOffset.Register == register)
+                foreach (var key in _registerValues.Keys)
                 {
-                    _memoryMap[key] = MemoryLocationOrConstantValue.Create(Offset.Create(X86Register.esp, _memoryMap[key].RegisterOffset.Offset + offset));
+                    if (_registerValues[key].IsRegisterOffset && _registerValues[key].RegisterOffset.Register == register)
+                    {
+                        _registerValues[key] = MemoryLocationOrConstantValue.Create(Offset.Create(register, _registerValues[key].RegisterOffset.Offset + offset));
+                    }
+                }
+                foreach (var key in _memoryMap.Keys)
+                {
+                    if (_memoryMap[key].IsRegisterOffset && _memoryMap[key].RegisterOffset.Register == register)
+                    {
+                        _memoryMap[key] = MemoryLocationOrConstantValue.Create(Offset.Create(register, _memoryMap[key].RegisterOffset.Offset + offset));
+                    }
                 }
             }
         }
@@ -792,6 +799,14 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Push_Register push_Register)
                     {
+                        var espResetIndex = fn.Instructions.Skip(i).ToList().FindIndex(x => x is Add_Register_Immediate add_Register_Immediate1 && add_Register_Immediate1.Destination == X86Register.esp && add_Register_Immediate1.ValueToAdd == 4);
+                        if (espResetIndex != -1 && !IsEspReferenced(fn.Instructions.Slice(i + 1, espResetIndex), 0))
+                        {
+                            fn.Instructions.Slice(i + 1, espResetIndex).ForEach(x => optimizedInstructions.Add(TrackInstruction(x)));
+                            i = i + espResetIndex + 1;
+                            continue;
+                        }
+
                         if (Peek(fn.Instructions, i + 1) is Pop_Register pop_register && push_Register.Register == pop_register.Destination)
                         {
                             // test for
@@ -882,6 +897,13 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Push_Offset push_Offset)
                     {
+                        var espResetIndex = fn.Instructions.Skip(i).ToList().FindIndex(x => x is Add_Register_Immediate add_Register_Immediate1 && add_Register_Immediate1.Destination == X86Register.esp && add_Register_Immediate1.ValueToAdd == 4);
+                        if (espResetIndex != -1 && !IsEspReferenced(fn.Instructions.Slice(i + 1, espResetIndex), 0))
+                        {
+                            fn.Instructions.Slice(i + 1, espResetIndex).ForEach(x => optimizedInstructions.Add(TrackInstruction(x)));
+                            i = i + espResetIndex + 1;
+                            continue;
+                        }
                         if (TryGetImmediate(push_Offset.Offset, out var immediate) && !IsReferenced(fn.Instructions, i+1, push_Offset.Offset))
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Push(immediate)));
@@ -936,6 +958,13 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Push_Address push_Address)
                     {
+                        var espResetIndex = fn.Instructions.Skip(i).ToList().FindIndex(x => x is Add_Register_Immediate add_Register_Immediate1 && add_Register_Immediate1.Destination == X86Register.esp && add_Register_Immediate1.ValueToAdd == 4);
+                        if (espResetIndex != -1 && !IsEspReferenced(fn.Instructions.Slice(i + 1, espResetIndex), 0))
+                        {
+                            fn.Instructions.Slice(i + 1, espResetIndex).ForEach(x => optimizedInstructions.Add(TrackInstruction(x)));
+                            i = i + espResetIndex + 1;
+                            continue;
+                        }
                         if (Peek(fn.Instructions, i + 1) is Add_Register_Immediate add_Register_Immediate1 && add_Register_Immediate1.Destination == X86Register.esp && add_Register_Immediate1.ValueToAdd == 4)
                         {
                             i++;
@@ -956,6 +985,13 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Push_Immediate<int> push_Immediate)
                     {
+                        var espResetIndex = fn.Instructions.Skip(i + 1).ToList().FindIndex(x => x is Add_Register_Immediate add_Register_Immediate1 && add_Register_Immediate1.Destination == X86Register.esp && add_Register_Immediate1.ValueToAdd == 4);
+                        if (espResetIndex != -1 && !IsEspReferenced(fn.Instructions.Slice(i + 1, espResetIndex), 0))
+                        {
+                            fn.Instructions.Slice(i + 1, espResetIndex).ForEach(x => optimizedInstructions.Add(TrackInstruction(x)));
+                            i = i + espResetIndex + 1;
+                            continue;
+                        }
                         if (Peek(fn.Instructions, i + 1) is Pop_Register pop_register)
                         {
                             // test for
@@ -971,6 +1007,39 @@ namespace PlatinumC.Optimizer
                         {
                             i++;
                             continue;
+                        }
+                        if (Peek(fn.Instructions, i + 2) is Add_Register_Immediate add_Register_Immediate2 && add_Register_Immediate2.Destination == X86Register.esp && add_Register_Immediate2.ValueToAdd == 4)
+                        {
+                            var nextInstruction = Peek(fn.Instructions, i + 1);
+                            if (nextInstruction != null
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp)
+                                && !IsEspReferenced([nextInstruction], 0))
+                            {
+                                optimizedInstructions.Add(TrackInstruction(nextInstruction));
+                                i = i + 2;
+                                continue;
+                            }
+                        }
+                        if (Peek(fn.Instructions, i + 2) is Pop_Register pop_Register2)
+                        {
+                            var nextInstruction = Peek(fn.Instructions, i + 1);
+                            if (nextInstruction != null
+                                && !(nextInstruction is Call || nextInstruction is Label || nextInstruction is Jmp)
+                                && !IsEspReferenced([nextInstruction], 0))
+                            {
+
+                                // Test for
+                                // push 98
+                                // mov eax, [ebp + 12]
+                                // pop edx
+                                // optimization:
+                                // mov eax, [ebp + 12]
+                                // mov edx, ebx
+                                optimizedInstructions.Add(TrackInstruction(nextInstruction));
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(pop_Register2.Destination, push_Immediate.Immediate)));
+                                i = i + 2;
+                                continue;
+                            }
                         }
                     }
                     if (instruction is Lea_Register_Offset lea_Register_Offset)
@@ -1238,7 +1307,7 @@ namespace PlatinumC.Optimizer
                     if (instruction is IMul_Register_Immediate imul_Register_Immediate)
                     {
                         if (!IsReferenced(fn.Instructions, i + 1, imul_Register_Immediate.Destination)) continue;
-
+                        if (imul_Register_Immediate.Immediate == 1) continue;
                         if (TryGetImmediate(imul_Register_Immediate.Destination, out var immediateValue))
                         {
                             optimizedInstructions.Add(TrackInstruction(X86Instructions.Mov(imul_Register_Immediate.Destination, immediateValue * imul_Register_Immediate.Immediate)));
@@ -1555,18 +1624,38 @@ namespace PlatinumC.Optimizer
                     }
                     if (instruction is Inc_Register inc_Register)
                     {
-                        if (_registerValues.TryGetValue(inc_Register.Destination, out var value) && value.IsRegisterOffset && !IsReferenced(fn.Instructions, i+1, inc_Register.Destination))
+                        if (_registerValues.TryGetValue(inc_Register.Destination, out var value) && value.IsRegisterOffset)
                         {
-                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Inc(value.RegisterOffset)));
-                            continue;
+                            if (Peek(fn.Instructions, i + 1) is Mov_Offset_Register mov_Offset_Register1  
+                                    && mov_Offset_Register1.Source == inc_Register.Destination // if the registers only reference is moving it back into the offset it came from
+                                    && mov_Offset_Register1.Destination.Equals(value.RegisterOffset)
+                                    && !IsReferenced(fn.Instructions, i + 2, inc_Register.Destination))
+                            {
+                                // Test for 			
+                                // mov ebx, dword [ebp - 12]
+                                // inc ebx
+                                // mov dword[ebp - 12], ebx
+                                // optimization
+                                // inc [ebp -12]
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Inc(value.RegisterOffset)));
+                                continue;
+                            }
+                           
                         }
                     }
                     if (instruction is Dec_Register dec_Register)
                     {
-                        if (_registerValues.TryGetValue(dec_Register.Destination, out var value) && value.IsRegisterOffset && !IsReferenced(fn.Instructions, i + 1, dec_Register.Destination))
+                        if (_registerValues.TryGetValue(dec_Register.Destination, out var value) && value.IsRegisterOffset)
                         {
-                            optimizedInstructions.Add(TrackInstruction(X86Instructions.Dec(value.RegisterOffset)));
-                            continue;
+                            if (Peek(fn.Instructions, i + 1) is Mov_Offset_Register mov_Offset_Register1
+                                    && mov_Offset_Register1.Source == dec_Register.Destination // if the registers only reference is moving it back into the offset it came from
+                                    && mov_Offset_Register1.Destination.Equals(value.RegisterOffset)
+                                    && !IsReferenced(fn.Instructions, i + 2, dec_Register.Destination))
+                            {
+                                optimizedInstructions.Add(TrackInstruction(X86Instructions.Dec(value.RegisterOffset)));
+                                continue;
+                            }
+
                         }
                     }
                     if (instruction is Inc_Offset inc_Offset)

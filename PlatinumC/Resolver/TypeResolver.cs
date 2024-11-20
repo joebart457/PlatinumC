@@ -57,7 +57,7 @@ namespace PlatinumC.Resolver
 
             foreach (var declaration in parsingResult.Declarations)
             {
-                if (!(declaration is ImportLibraryDeclaration))
+                if (!(declaration is ImportLibraryDeclaration || declaration is TypeDeclaration))
                     resolvedDeclarations.Add(declaration.Visit(this));
             }
             return new ResolverResult(resolvedDeclarations);
@@ -412,6 +412,7 @@ namespace PlatinumC.Resolver
             _localVariables[variableDeclaration.Identifier.Lexeme] = variableType;
             if (initializer != null && !variableType.Is(initializer.ResolvedType))
                 throw new ParsingException(variableDeclaration.Identifier, $"initializer of type {initializer.ResolvedType} cannot be converted to type {variableType}");
+            if (variableType.IsArray && initializer != null) throw new ParsingException(variableDeclaration.Identifier, "cannot provide initializer for array");
             return new TypedVariableDeclaration(variableDeclaration, variableType, variableDeclaration.Identifier, initializer);
         }
 
@@ -629,6 +630,10 @@ namespace PlatinumC.Resolver
         {
             if (_currentFunction != null) throw new ParsingException(globalVariableDeclaration.Token, "cannot declare global variable inside of function");
             var variableType = Resolve(globalVariableDeclaration.TypeSymbol);
+            if (globalVariableDeclaration.Initializer == null)
+            {
+                return new TypedGlobalVariableDeclaration_UninitializedObject(globalVariableDeclaration, variableType, globalVariableDeclaration.Identifier);
+            }
             var initializer = globalVariableDeclaration.Initializer.Visit(this);
             if (_globalVariables.ContainsKey(globalVariableDeclaration.Identifier.Lexeme))
                 throw new ParsingException(globalVariableDeclaration.Identifier, $"global identifier {globalVariableDeclaration.Identifier} is already defined");
@@ -665,10 +670,10 @@ namespace PlatinumC.Resolver
 
         internal TypedExpression Accept(BinaryArrayIndex binaryArrayIndex)
         {
-            var lhs = binaryArrayIndex.Visit(this);
+            var lhs = binaryArrayIndex.Lhs.Visit(this);
             if (!lhs.ResolvedType.IsArray)
                 throw new ParsingException(binaryArrayIndex.Token, "expect left hand side of index to be array type");
-            var rhs = binaryArrayIndex.Visit(this);
+            var rhs = binaryArrayIndex.Rhs.Visit(this);
             if (!rhs.ResolvedType.Is(SupportedType.Int))
                 throw new ParsingException(binaryArrayIndex.Token, $"expect index of array to be integer type");
             if (rhs is TypedLiteralInteger typedLiteralInteger) return new TypedBinaryArrayIndex_LiteralInteger(binaryArrayIndex, lhs.ResolvedType.UnderlyingType!, lhs, typedLiteralInteger);

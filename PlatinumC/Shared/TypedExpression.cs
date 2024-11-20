@@ -754,7 +754,11 @@ namespace PlatinumC.Shared
             else if (ResolvedType.HasStorageClass(StorageClass.Dword))
             {
                 context.AddInstruction(X86Instructions.Push(arrayOffset));
-                throw new InvalidOperationException();
+            }
+            else if (ResolvedType.IsArray)
+            {
+                context.AddInstruction(X86Instructions.Lea(X86Register.ebx, arrayOffset));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             }
             else throw new InvalidOperationException("cannot push object of this size onto stack");
         }
@@ -763,6 +767,7 @@ namespace PlatinumC.Shared
         {
             var arrayOffset = Lhs.GetEvaluatedOffset(context);
             arrayOffset.Offset += Index.Value * ResolvedType.Size();
+            if (ResolvedType.HasStorageClass(StorageClass.Byte)) arrayOffset = arrayOffset.ToByteOffset();
             return arrayOffset;
         }
     }
@@ -796,6 +801,11 @@ namespace PlatinumC.Shared
             else if (ResolvedType.HasStorageClass(StorageClass.Dword))
             {
                 context.AddInstruction(X86Instructions.Push(Offset.Create(X86Register.eax, 0)));
+            }
+            else if (ResolvedType.IsArray)
+            {
+                context.AddInstruction(X86Instructions.Lea(X86Register.ebx, Offset.Create(X86Register.eax, 0)));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             }
             else throw new InvalidOperationException("cannot push object of this size onto stack");
         }
@@ -920,14 +930,32 @@ namespace PlatinumC.Shared
 
         public override void Visit(X86CompilationContext context)
         {
-            var offset = context.GetIdentifierOffset(Identifier);
-            // Even bytes are stored as at least dword locally
-            context.AddInstruction(X86Instructions.Push(offset));
+            var offset = context.GetIdentifierOffset(Identifier, out bool isfunctionParameter);
+            if (ResolvedType.IsArray && !isfunctionParameter)
+            {
+                context.AddInstruction(X86Instructions.Lea(X86Register.ebx, offset));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+            }else if (ResolvedType.IsCustomType)
+            {
+                context.AddInstruction(X86Instructions.Lea(X86Register.ebx, offset));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+            }
+            else
+            {
+                // Even bytes are stored as at least dword locally
+                context.AddInstruction(X86Instructions.Push(offset));
+            }
         }
 
         public override IOffset GetEvaluatedOffset(X86CompilationContext context)
         {
-            return context.GetIdentifierOffset(Identifier);
+            var offset = context.GetIdentifierOffset(Identifier, out bool isfunctionParameter);
+            if (ResolvedType.IsArray && isfunctionParameter)
+            {
+                context.AddInstruction(X86Instructions.Mov(X86Register.eax, offset));
+                return Offset.Create(X86Register.eax, 0);
+            }
+            else return offset;
         }
     }
 
@@ -954,6 +982,7 @@ namespace PlatinumC.Shared
         public override IOffset GetEvaluatedOffset(X86CompilationContext context)
         {
             var offset = context.GetGlobalOffset(Identifier);
+            // Global byte types ARE stored as just bytes
             if (ResolvedType.HasStorageClass(StorageClass.Byte)) return Offset.CreateSymbolByteOffset(offset.Symbol, offset.Offset);
             return offset;
         }
@@ -1142,6 +1171,7 @@ namespace PlatinumC.Shared
             context.AddInstruction(X86Instructions.Pop(X86Register.eax));
             
             if (ResolvedType.Is(SupportedType.Byte)) context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, Offset.CreateByteOffset(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget))));
+            else if (ResolvedType.IsArray || ResolvedType.IsCustomType) context.AddInstruction(X86Instructions.Lea(X86Register.ebx, Offset.Create(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget))));
             else context.AddInstruction(X86Instructions.Mov(X86Register.ebx, Offset.Create(X86Register.eax, Lhs.ResolvedType.UnderlyingType!.GetMemberOffset(MemberTarget))));
             context.AddInstruction(X86Instructions.Push(X86Register.ebx));
         }
@@ -1170,25 +1200,19 @@ namespace PlatinumC.Shared
             base.Visit(context);
             IOffset targetOffset = GetEvaluatedOffset(context);
 
-            if (ResolvedType.Is(SupportedType.Byte))
+            if (ResolvedType.HasStorageClass(StorageClass.Byte))
             {
-                if (targetOffset is RegisterOffset_Byte byteOffset)
-                {
-                    context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, byteOffset));
-                    context.AddInstruction(X86Instructions.Push(X86Register.ebx));
-                }
-                else if (targetOffset is SymbolOffset_Byte symbolOffset_Byte)
-                {
-                    context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, symbolOffset_Byte));
-                    context.AddInstruction(X86Instructions.Push(X86Register.ebx));
-                }
-                else throw new InvalidOperationException();
+                context.AddInstruction(X86Instructions.Movsx(X86Register.ebx, targetOffset));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
+            }
+            else if (ResolvedType.IsArray || ResolvedType.IsCustomType)
+            {
+                context.AddInstruction(X86Instructions.Lea(X86Register.ebx, targetOffset));
+                context.AddInstruction(X86Instructions.Push(X86Register.ebx));
             }
             else
             {
-                if (targetOffset is RegisterOffset registerOffset) context.AddInstruction(X86Instructions.Push(registerOffset));
-                else if (targetOffset is SymbolOffset symbolOffset) context.AddInstruction(X86Instructions.Push(symbolOffset));
-                else throw new InvalidOperationException();
+                context.AddInstruction(X86Instructions.Push(targetOffset));
             }
         }
 
@@ -1196,6 +1220,7 @@ namespace PlatinumC.Shared
         {
             IOffset targetOffset = Lhs.GetEvaluatedOffset(context);
             targetOffset.Offset = targetOffset.Offset + Lhs.ResolvedType.GetMemberOffset(MemberTarget);
+            if (ResolvedType.HasStorageClass(StorageClass.Byte)) targetOffset = targetOffset.ToByteOffset();
             return targetOffset;
         }
     }

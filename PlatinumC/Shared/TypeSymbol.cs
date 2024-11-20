@@ -13,6 +13,7 @@ namespace PlatinumC.Shared
             Token = token;
             SupportedType = supportedType;
             UnderlyingType = underlyingType;
+            ArraySize = arraySize;
         }
     }
 }
