@@ -137,6 +137,7 @@ namespace PlatinumC.Shared
         public override string ToString()
         {
             if (IsPointer) return $"{UnderlyingType}*";
+            if (IsArray) return $"{UnderlyingType}[{ArraySize}]";
             return $"{SupportedType}";
         }
     }
